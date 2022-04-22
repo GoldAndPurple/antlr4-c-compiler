@@ -22,5 +22,4 @@ TEST(LexerSuite, Numbers) {
       "<1:2>\tFloatConstant\t1234.56789\n");
 }
 
-
 }  // namespace dlang::test
