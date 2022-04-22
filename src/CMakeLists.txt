@@ -1,0 +1,3 @@
+add_subdirectory(grammar)
+add_subdirectory(dlangparser)
+add_subdirectory(libdlang)
