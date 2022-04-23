@@ -1,4 +1,4 @@
-function(target_set_cxx_stanrard target_name)
+function(target_set_cxx_standart target_name)
   set_target_properties(
     ${target_name}
     PROPERTIES
@@ -15,7 +15,7 @@ function(set_compile_options target_name)
     target_compile_options(${target_name} PRIVATE -Wall -Wextra -Werror -pedantic)
   endif()
 
-  target_set_cxx_stanrard(${target_name})
+  target_set_cxx_standart(${target_name})
 
   if(CLANG_TIDY_EXE)
     set_target_properties(
