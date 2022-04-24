@@ -23,6 +23,7 @@ blockItemList
 blockItem
     :   statement
     |   declaration
+    |   functionDefinition
     |   functionCall
     ;
 
@@ -67,6 +68,7 @@ primaryExpression
     :   Identifier
     |   IntegerConstant
     |   FloatConstant
+    |   String
     |   LeftParen expression RightParen
     ;
 
