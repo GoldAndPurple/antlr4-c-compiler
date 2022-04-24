@@ -19,6 +19,7 @@ target_link_libraries(
   ${lib_name}
   PRIVATE
     DlangLexer
+    DlangParser
     fmt
 )
 

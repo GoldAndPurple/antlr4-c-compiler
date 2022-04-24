@@ -1,5 +1,9 @@
 parser grammar DlangParser;
 
+options {
+	tokenVocab = DlangLexer;
+}
+
 typeSpecifier
     :
     (   Void
@@ -55,7 +59,7 @@ identifierList
 expression
     :   expression opr=( Star | Div | Mod ) expression                       # mulDivExpr
     |   expression opr=( Plus | Minus ) expression                             # addminExpr
-    |   expression opr=( LeftShift | RightShift | And | Or | Negate | Xor ) expression   # bitExpr
+    |   expression opr=( LeftShift | RightShift | And | Or | Negate | Caret ) expression   # bitExpr
     |   primaryExpression                                                   # primExpr
     ;
 
@@ -129,5 +133,4 @@ unaryStatement
     |   MinusMinus Identifier  # unaryDecrementStatement
     |   Identifier PlusPlus    # unaryIncrementStatement
     |   Identifier MinusMinus  # unaryDecrementStatement
-    |   Identifier Power       # unarySquareStatement
     ;

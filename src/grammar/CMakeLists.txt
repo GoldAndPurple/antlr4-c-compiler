@@ -21,7 +21,7 @@ antlr_target(
   PARSER
   VISITOR
   PACKAGE "dlang"
-  DEPENDS_ANTLR ${antlr_lexer_target_name}
+  COMPILE_FLAGS -lib "${ANTLR_${antlr_lexer_target_name}_OUTPUT_DIR}"
 )
 
 include(CompileOptions)

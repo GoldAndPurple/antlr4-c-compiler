@@ -2,7 +2,6 @@
 Checks: >
   clang-diagnostic-*,
   clang-analyzer-*,
-  *,
   -cert-err58-cpp,
   -fuchsia-*,
   -llvm-header-guard,
