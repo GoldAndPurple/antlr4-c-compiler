@@ -4,6 +4,17 @@ options {
 	tokenVocab = DlangLexer;
 }
 
+global
+    :   externalDeclaration
+    |   global externalDeclaration
+    ;
+
+externalDeclaration
+    :   functionDefinition
+    |   declaration
+    |   Semi
+    ;
+
 typeSpecifier
     :
     (   Void
@@ -23,7 +34,6 @@ blockItemList
 blockItem
     :   statement
     |   declaration
-    |   functionDefinition
     |   functionCall
     ;
 
@@ -58,10 +68,10 @@ identifierList
     ;
 
 expression
-    :   expression opr=( Star | Div | Mod ) expression                       # mulDivExpr
-    |   expression opr=( Plus | Minus ) expression                             # addminExpr
-    |   expression opr=( LeftShift | RightShift | And | Or | Negate | Caret ) expression   # bitExpr
-    |   primaryExpression                                                   # primExpr
+    :   expression opr=( Star | Div | Mod ) expression                                      # mulDivExpr
+    |   expression opr=( Plus | Minus ) expression                                          # addminExpr
+    |   expression opr=( LeftShift | RightShift | And | Or | Negate | Caret ) expression    # bitExpr
+    |   primaryExpression                                                                   # primExpr
     ;
 
 primaryExpression

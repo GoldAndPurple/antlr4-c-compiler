@@ -10,9 +10,11 @@ target_include_directories(${lib_name} PUBLIC .)
 target_sources(
   ${lib_name}
   PUBLIC
-    libdlang/dump_tokens.hpp
+    libdlang/ast.hpp
+    libdlang/options.hpp
   PRIVATE
-    libdlang/dump_tokens.cpp
+    libdlang/ast.cpp
+    libdlang/options.cpp
 )
 
 target_link_libraries(

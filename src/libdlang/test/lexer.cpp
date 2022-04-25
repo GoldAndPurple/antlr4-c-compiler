@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <libdlang/dump_tokens.hpp>
+#include <libdlang/options.hpp>
 
 #include <sstream>
 #include <string>
