@@ -1,5 +1,5 @@
-#include <libdlang/options.hpp>
 #include <libdlang/ast.hpp>
+#include <libdlang/options.hpp>
 
 #include <DlangLexer.h>
 #include <DlangParser.h>
@@ -36,9 +36,23 @@ void dump_ast(std::istream& in, std::ostream& out) {
   antlr4::CommonTokenStream tokens(&lexer);
   DlangParser parser(&tokens);
 
+/*   out << parser.global()->toStringTree(&parser, true);
+  parser.reset(); */
+
   DlangCustomVisitor visitor;
-  ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
-  out << fmt::format("{string}\n", fmt::arg("string", get_token_type_name(lexer,*(tree->token))));
+  std::any result = visitor.visitGlobal(parser.global());
+  
+/*   auto typedresult = std::any_cast<ASTNode*>(result);
+  out << typedresult->children.size() << '\n';
+  for (size_t i = 0; i < typedresult->children.size();i++){
+    out << typedresult->children[i]->getToken() << '\n';
+  } */
+
+  /* std::any res = (visitor.visitGlobal(parser.global())); 
+  ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global())); */
+  out << fmt::format(
+      "\n\toutput has value:{string}\n",
+      fmt::arg("string", result.has_value()));
 }
 
 }  // namespace dlang

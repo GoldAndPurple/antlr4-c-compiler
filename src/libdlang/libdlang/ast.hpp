@@ -6,25 +6,73 @@
 
 namespace dlang {
 
+  enum {
+    type_void,
+    type_int,
+    type_float,
+    type_char,
+  };
+
 class DlangCustomVisitor : public DlangParserBaseVisitor {
  public:
-  std::any visitPrimaryExpression(DlangParser::PrimaryExpressionContext* ctx);
+  //static DlangLexer lexer;
 
-  std::any visitFunctionDefinition(DlangParser::PrimaryExpressionContext* ctx);
-  std::any visitFunctionCall(DlangParser::PrimaryExpressionContext* ctx);
-  std::any visitTypeSpecifier(DlangParser::PrimaryExpressionContext* ctx);
-  std::any visitJumpStatement(DlangParser::PrimaryExpressionContext* ctx);
+  std::any visitGlobal(DlangParser::GlobalContext* ctx);
+  std::any visitPrimeExpr(DlangParser::PrimeExprContext* ctx);
+  std::any visitIdentifierList(DlangParser::IdentifierListContext *ctx);
+  std::any visitFunctionParameterList(DlangParser::FunctionParameterListContext *ctx);
+  std::any visitFunctionDefinition(DlangParser::FunctionDefinitionContext*ctx); 
+  std::any visitTypeSpecifier(DlangParser::TypeSpecifierContext* ctx);
+
+  /*   
+    externalDeclataion
+    std::any visitFunctionCall(DlangParser::FunctionCallContext* ctx);
+    s
+    parameterTypeList
+    compoundStatemnt
+    blockItemList
+    blockItem
+    statement
+    std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);*/
 };
 
 class ASTNode {
  public:
   antlr4::Token* token;
   std::vector<ASTNode*> children;
-  
-  ASTNode(){}
-  ASTNode(antlr4::Token* t) : token(t){};
-  size_t getToken() { return token->getType(); }
+
+  ASTNode(antlr4::Token* t = nullptr) : token(t) {}
+  size_t getToken() { return (token) ? token->getType() : 0; }
   void addChild(ASTNode* c) { children.push_back(c); }
+};
+class ASTNodeIdList : public ASTNode {
+ public:
+  //children axe expressions passed to function
+  ASTNodeIdList(antlr4::Token* t) : ASTNode(t){};
+};
+
+class ASTNodeParameterList : public ASTNode {
+ public:
+  std::vector<std::string> param_names;
+  std::vector<int> param_types;
+  //no children
+  ASTNodeParameterList(antlr4::Token* t) : ASTNode(t){};
+};
+
+class ASTNodeFuncDef : public ASTNode {
+ public:
+  int returntype;
+  std::string name;
+  ASTNodeParameterList *parameters;
+
+  ASTNodeFuncDef(antlr4::Token* t) : ASTNode(t){};
+};
+
+class ASTNodeExpr : public ASTNode {
+ public:
+  char exprtype;
+
+  ASTNodeExpr(antlr4::Token* t, char v) : ASTNode(t), exprtype(v){};
 };
 
 class ASTNodeInt : public ASTNode {
@@ -52,21 +100,16 @@ class ASTNodeIdentifier : public ASTNode {
   ASTNodeIdentifier(antlr4::Token* t, std::string v) : ASTNode(t), value(v){};
 };
 
-class ASTNodeFuncDef : public ASTNode {
-  public:
-  std::string name;
-  //also return type and parameters
-  ASTNodeFuncDef(antlr4::Token* t, std::string v) : ASTNode(t), name(v){};
-};
 class ASTNodeFuncCall : public ASTNode {
-  public:
+ public:
   std::string name;
-  //also parameters
+  // children are expression-parameters
   ASTNodeFuncCall(antlr4::Token* t, std::string v) : ASTNode(t), name(v){};
 };
 
 class ASTNodeReturn : public ASTNode {
-  public:
+ public:
+ // child is return expression
   ASTNodeReturn(antlr4::Token* t) : ASTNode(t){};
 };
 

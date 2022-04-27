@@ -5,8 +5,7 @@ options {
 }
 
 global
-    :   externalDeclaration
-    |   global externalDeclaration
+    :   externalDeclaration* EOF
     ;
 
 externalDeclaration
@@ -18,11 +17,9 @@ externalDeclaration
 typeSpecifier
     :
     (   Void
-    |   Bool
     |   Char
     |   Int
     |   Float
-    |   Double
     )
     ;
 
@@ -69,9 +66,9 @@ identifierList
 
 expression
     :   expression opr=( Star | Div | Mod ) expression                                      # mulDivExpr
-    |   expression opr=( Plus | Minus ) expression                                          # addminExpr
+    |   expression opr=( Plus | Minus ) expression                                          # addsubExpr
     |   expression opr=( LeftShift | RightShift | And | Or | Negate | Caret ) expression    # bitExpr
-    |   primaryExpression                                                                   # primExpr
+    |   primaryExpression                                                                   # primeExpr
     ;
 
 primaryExpression
