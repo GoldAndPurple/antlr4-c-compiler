@@ -2,16 +2,43 @@
 
 namespace dlang {
 
+std::string ASTNode::treeprint;
+
+ASTNode* astcast(std::any obj) {
+  if (obj.has_value()) {
+    if (obj.type() == typeid(ASTNode*)) {
+      return std::any_cast<ASTNode*>(obj);
+    } else if (obj.type() == typeid(ASTNodeIdList*)) {
+      return std::any_cast<ASTNodeIdList*>(obj);
+    } else if (obj.type() == typeid(ASTNodeParameterList*)) {
+      return std::any_cast<ASTNodeParameterList*>(obj);
+    } else if (obj.type() == typeid(ASTNodeFuncDef*)) {
+      return std::any_cast<ASTNodeFuncDef*>(obj);
+    } else if (obj.type() == typeid(ASTNodeExpr*)) {
+      return std::any_cast<ASTNodeExpr*>(obj);
+    } else if (obj.type() == typeid(ASTNodeFuncCall*)) {
+      return std::any_cast<ASTNodeFuncCall*>(obj);
+    } else if (obj.type() == typeid(ASTNodeReturn*)) {
+      return std::any_cast<ASTNodeReturn*>(obj);
+    } else if (obj.type() == typeid(ASTNodeInt*)) {
+      return std::any_cast<ASTNodeInt*>(obj);
+    } else if (obj.type() == typeid(ASTNodeFloat*)) {
+      return std::any_cast<ASTNodeFloat*>(obj);
+    } else if (obj.type() == typeid(ASTNodeString*)) {
+      return std::any_cast<ASTNodeString*>(obj);
+    } else if (obj.type() == typeid(ASTNodeIdentifier*)) {
+      return std::any_cast<ASTNodeIdentifier*>(obj);
+    }
+  }
+  return nullptr;
+}
+
 std::any DlangCustomVisitor::visitGlobal(DlangParser::GlobalContext* ctx) {
-  ASTNode* n = new ASTNode();
+  ASTNode* n = new ASTNode(program);
   for (auto decl : ctx->externalDeclaration()) {
     std::any tmp = visit(decl);
     if (tmp.has_value()) {
-      if (tmp.type() == typeid(ASTNode*)) {
-        n->addChild(std::any_cast<ASTNode*>(tmp));
-      } else if (tmp.type() == typeid(ASTNodeFuncDef*)) {
-        n->addChild(std::any_cast<ASTNodeFuncDef*>(tmp));
-      } 
+      n->addChild(astcast(tmp));
     }
   }
   return n;
@@ -19,11 +46,11 @@ std::any DlangCustomVisitor::visitGlobal(DlangParser::GlobalContext* ctx) {
 
 std::any DlangCustomVisitor::visitIdentifierList(
     DlangParser::IdentifierListContext* ctx) {
-  ASTNodeIdList* n = new ASTNodeIdList(nullptr);
+  ASTNodeIdList* n = new ASTNodeIdList(idlist);
   std::any tmp;
   for (auto expr : ctx->expression()) {
     tmp = visit(expr);
-    n->addChild(std::any_cast<ASTNode*>(tmp));
+    n->addChild(astcast(tmp));
   }
 
   return n;
@@ -35,15 +62,13 @@ std::any DlangCustomVisitor::visitPrimeExpr(
   auto t = ctx->getStart()->getType();
   /* std::cout << ctx->getText() << '\n'; */
   if (t == DlangParser::Identifier) {
-    node = new ASTNodeIdentifier(ctx->getStart(), ctx->getStart()->getText());
+    node = new ASTNodeIdentifier(value_id, ctx->getStart()->getText());
   } else if (t == DlangParser::IntegerConstant) {
-    node =
-        new ASTNodeInt(ctx->getStart(), std::stoi(ctx->getStart()->getText()));
+    node = new ASTNodeInt(value_int, std::stoi(ctx->getStart()->getText()));
   } else if (t == DlangParser::FloatConstant) {
-    node = new ASTNodeFloat(
-        ctx->getStart(), std::stof(ctx->getStart()->getText()));
+    node = new ASTNodeFloat(value_float, std::stof(ctx->getStart()->getText()));
   } else if (t == DlangParser::String) {
-    node = new ASTNodeString(ctx->getStart(), ctx->getStart()->getText());
+    node = new ASTNodeString(value_string, ctx->getStart()->getText());
   } else if (t == DlangParser::LeftParen) {
     /* node = new ASTNodeExpr();
     node->addChild(std::any_cast<ASTNodeExpr>(ctx->expression()))); */
@@ -55,7 +80,7 @@ std::any DlangCustomVisitor::visitPrimeExpr(
 
 std::any DlangCustomVisitor::visitTypeSpecifier(
     DlangParser::TypeSpecifierContext* ctx) {
-  int r;
+  size_t r;
   if (ctx->Void()) {
     r = type_void;
   } else if (ctx->Int()) {
@@ -72,7 +97,7 @@ std::any DlangCustomVisitor::visitTypeSpecifier(
 
 std::any DlangCustomVisitor::visitFunctionParameterList(
     DlangParser::FunctionParameterListContext* ctx) {
-  ASTNodeParameterList* n = new ASTNodeParameterList(nullptr);
+  ASTNodeParameterList* n = new ASTNodeParameterList(paramlist);
   for (size_t i = 0; i < ctx->Identifier().size(); i++) {
     n->param_names.push_back(ctx->Identifier(i)->getText());
     n->param_types.push_back(
@@ -83,13 +108,23 @@ std::any DlangCustomVisitor::visitFunctionParameterList(
 
 std::any DlangCustomVisitor::visitFunctionDefinition(
     DlangParser::FunctionDefinitionContext* ctx) {
-  ASTNodeFuncDef* n = new ASTNodeFuncDef(nullptr);
+  ASTNodeFuncDef* n = new ASTNodeFuncDef(funcdef);
   n->name = ctx->Identifier()->getText();
-  n->returntype = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
-  // bad cast
-  // n->parameters =
-  // std::any_cast<ASTNodeParameterList*>(visit(ctx->parameterTypeList())); also
-  // need to add children-block-items
+  n->returntype =
+      std::any_cast<size_t>(visitTypeSpecifier(ctx->typeSpecifier()));
+  auto tmp = visit(ctx->parameterTypeList());
+  if (tmp.has_value()) {
+    n->parameters = (ASTNodeParameterList*)astcast(tmp);
+  }
+  n->addChild(astcast(visit(ctx->compoundStatement())));
+  return n;
+}
+
+std::any DlangCustomVisitor::visitFunctionCall(
+    DlangParser::FunctionCallContext* ctx) {
+  ASTNodeFuncCall* n = new ASTNodeFuncCall(funccall);
+  n->name = ctx->Identifier()->getText();
+  n->addChild(astcast(visit(ctx->identifierList())));
   return n;
 }
 

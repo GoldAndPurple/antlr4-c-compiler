@@ -36,23 +36,25 @@ void dump_ast(std::istream& in, std::ostream& out) {
   antlr4::CommonTokenStream tokens(&lexer);
   DlangParser parser(&tokens);
 
-/*   out << parser.global()->toStringTree(&parser, true);
-  parser.reset(); */
+  /*   out << parser.global()->toStringTree(&parser, true);
+    parser.reset(); */
 
   DlangCustomVisitor visitor;
-  std::any result = visitor.visitGlobal(parser.global());
-  
-/*   auto typedresult = std::any_cast<ASTNode*>(result);
-  out << typedresult->children.size() << '\n';
-  for (size_t i = 0; i < typedresult->children.size();i++){
-    out << typedresult->children[i]->getToken() << '\n';
-  } */
+  ASTNode* result =
+      std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
+  result->traverse();
 
-  /* std::any res = (visitor.visitGlobal(parser.global())); 
-  ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global())); */
+  /*   auto typedresult = std::any_cast<ASTNode*>(result);
+    out << typedresult->children.size() << '\n';
+    for (size_t i = 0; i < typedresult->children.size();i++){
+      out << typedresult->children[i]->getToken() << '\n';
+    } */
+
+  /* std::any res = (visitor.visitGlobal(parser.global()));
+  ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
+*/
   out << fmt::format(
-      "\n\toutput has value:{string}\n",
-      fmt::arg("string", result.has_value()));
+      "ast root node id is {string}\n", fmt::arg("string", result->treeprint));
 }
 
 }  // namespace dlang
