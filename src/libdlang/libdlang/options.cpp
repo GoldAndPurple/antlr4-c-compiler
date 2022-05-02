@@ -42,7 +42,8 @@ void dump_ast(std::istream& in, std::ostream& out) {
   DlangCustomVisitor visitor;
   ASTNode* result =
       std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
-  result->traverse();
+  ASTVisitor v;
+  v.visit(result);
 
   /*   auto typedresult = std::any_cast<ASTNode*>(result);
     out << typedresult->children.size() << '\n';
@@ -54,7 +55,7 @@ void dump_ast(std::istream& in, std::ostream& out) {
   ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
 */
   out << fmt::format(
-      "ast root node id is {string}\n", fmt::arg("string", result->treeprint));
+      "{tree}\n", fmt::arg("tree", v.treeprint.str()));
 }
 
 }  // namespace dlang

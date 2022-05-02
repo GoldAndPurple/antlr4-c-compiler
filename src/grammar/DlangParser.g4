@@ -24,8 +24,7 @@ typeSpecifier
     ;
 
 blockItemList
-    :   blockItem
-    |   blockItemList blockItem
+    :   blockItem*
     ;
 
 blockItem

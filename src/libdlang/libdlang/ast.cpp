@@ -2,8 +2,6 @@
 
 namespace dlang {
 
-std::string ASTNode::treeprint;
-
 ASTNode* astcast(std::any obj) {
   if (obj.has_value()) {
     if (obj.type() == typeid(ASTNode*)) {
@@ -116,7 +114,9 @@ std::any DlangCustomVisitor::visitFunctionDefinition(
   if (tmp.has_value()) {
     n->parameters = (ASTNodeParameterList*)astcast(tmp);
   }
-  n->addChild(astcast(visit(ctx->compoundStatement())));
+  // add statements directly as children, and not compounds
+  ASTNode* statements = astcast(visit(ctx->compoundStatement()));
+  n->children = statements->children;
   return n;
 }
 
@@ -126,6 +126,39 @@ std::any DlangCustomVisitor::visitFunctionCall(
   n->name = ctx->Identifier()->getText();
   n->addChild(astcast(visit(ctx->identifierList())));
   return n;
+}
+
+std::any DlangCustomVisitor::visitCompoundStatement(
+    DlangParser::CompoundStatementContext* ctx) {
+  return visit(ctx->blockItemList());
+}
+
+std::any DlangCustomVisitor::visitBlockItemList(
+    DlangParser::BlockItemListContext* ctx) {
+  ASTNode* n = new ASTNode();
+  for (auto item : ctx->blockItem()) {
+    n->addChild(astcast(visit(item)));
+  }
+  return n;
+}
+
+std::any DlangCustomVisitor::visitJumpStatement(
+    DlangParser::JumpStatementContext* ctx) {
+  ASTNodeReturn* n = new ASTNodeReturn(jump);
+  n->addChild(astcast(visit(ctx->expression())));
+  return n;
+}
+
+// ASTvisitor accepts
+
+void ASTNode::accept(ASTVisitor* v) {
+  v->treeprint << '(' << token << '\n';
+  for (auto c : children) {
+    if (c) {
+      v->visit(c);
+    }
+  }
+  v->treeprint << ')';
 }
 
 }  // namespace dlang

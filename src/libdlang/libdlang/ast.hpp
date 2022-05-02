@@ -13,6 +13,7 @@ enum {
   paramlist,
   idlist,
   jump,
+  expr,
   value_id,
   value_string,
   value_int,
@@ -33,41 +34,37 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitFunctionDefinition(DlangParser::FunctionDefinitionContext* ctx);
   std::any visitFunctionCall(DlangParser::FunctionCallContext* ctx);
   std::any visitTypeSpecifier(DlangParser::TypeSpecifierContext* ctx);
+  std::any visitCompoundStatement(DlangParser::CompoundStatementContext* ctx);
+  std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
+  std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);
 
   /*
+  JumpStatement
     externalDeclataion
-    s
-    parameterTypeList
     compoundStatemnt
-    blockItemList
+    BlockItemList
     blockItem
     statement
     std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);*/
 };
 
+class ASTVisitor;
+
 class ASTNode {
  public:
-  static std::string treeprint;
-
   size_t token;
   std::vector<ASTNode*> children;
 
   ASTNode(size_t t = 0) : token(t) {}
   size_t getToken() { return token; }
   void addChild(ASTNode* c) { children.push_back(c); }
-  virtual void traverse() {
-    treeprint += ' ' + std::to_string(token);
-    for (auto c : children) {
-      if (c) { /* in case you added nullptr child */
-        c->traverse();
-      }
-    }
-  }
+
+  void accept(ASTVisitor* v);
 };
 class ASTNodeIdList : public ASTNode {
  public:
   // children axe expressions passed to function
-  ASTNodeIdList(size_t t) : ASTNode(t){};
+  ASTNodeIdList(size_t t = idlist) : ASTNode(t){};
 };
 
 class ASTNodeParameterList : public ASTNode {
@@ -75,7 +72,7 @@ class ASTNodeParameterList : public ASTNode {
   std::vector<std::string> param_names;
   std::vector<int> param_types;
   // no children
-  ASTNodeParameterList(size_t t) : ASTNode(t){};
+  ASTNodeParameterList(size_t t = paramlist) : ASTNode(t){};
 };
 
 class ASTNodeFuncDef : public ASTNode {
@@ -84,7 +81,7 @@ class ASTNodeFuncDef : public ASTNode {
   std::string name;
   ASTNodeParameterList* parameters;
 
-  ASTNodeFuncDef(size_t t) : ASTNode(t){};
+  ASTNodeFuncDef(size_t t = funcdef) : ASTNode(t){};
 };
 
 class ASTNodeExpr : public ASTNode {
@@ -123,15 +120,35 @@ class ASTNodeFuncCall : public ASTNode {
  public:
   std::string name;
   // children are expression-parameters
-  ASTNodeFuncCall(size_t t) : ASTNode(t){};
+  ASTNodeFuncCall(size_t t = funccall) : ASTNode(t){};
 };
 
 class ASTNodeReturn : public ASTNode {
  public:
   // child is return expression
-  ASTNodeReturn(size_t t) : ASTNode(t){};
+  ASTNodeReturn(size_t t = jump) : ASTNode(t){};
 };
 
-class ASTVisitor {};
+class ASTVisitor {
+ public:
+  std::stringstream treeprint;
+
+  void visit(ASTNode* n) { n->accept(this); }
+};
+
+
+/*
+ASTNode
+ASTNodeExpr
+ASTNodeInt
+ASTNodeFloat
+ASTNodeString
+ASTNodeIdentifier
+ASTNodeReturn
+ASTNodeFuncCall
+ASTNodeFuncDef
+ASTNodeIdList
+ASTNodeParameterList
+*/
 
 }  // namespace dlang
