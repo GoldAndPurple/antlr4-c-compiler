@@ -44,7 +44,7 @@ void dump_ast(std::istream& in, std::ostream& out) {
       std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
   ASTVisitor v;
   v.visit(result);
-  
+
   out << fmt::format("{tree}\n", fmt::arg("tree", v.treeprint.str()));
 }
 
