@@ -40,22 +40,12 @@ void dump_ast(std::istream& in, std::ostream& out) {
     parser.reset(); */
 
   DlangCustomVisitor visitor;
-  ASTNode* result =
-      std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
+  ASTNodeProgram* result =
+      std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
   ASTVisitor v;
   v.visit(result);
-
-  /*   auto typedresult = std::any_cast<ASTNode*>(result);
-    out << typedresult->children.size() << '\n';
-    for (size_t i = 0; i < typedresult->children.size();i++){
-      out << typedresult->children[i]->getToken() << '\n';
-    } */
-
-  /* std::any res = (visitor.visitGlobal(parser.global()));
-  ASTNode* tree = std::any_cast<ASTNode*>(visitor.visitGlobal(parser.global()));
-*/
-  out << fmt::format(
-      "{tree}\n", fmt::arg("tree", v.treeprint.str()));
+  
+  out << fmt::format("{tree}\n", fmt::arg("tree", v.treeprint.str()));
 }
 
 }  // namespace dlang

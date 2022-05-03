@@ -6,6 +6,10 @@ ASTNode* astcast(std::any obj) {
   if (obj.has_value()) {
     if (obj.type() == typeid(ASTNode*)) {
       return std::any_cast<ASTNode*>(obj);
+    } else if (obj.type() == typeid(ASTNodeItem*)) {
+      return std::any_cast<ASTNodeItem*>(obj);
+    } else if (obj.type() == typeid(ASTNodeProgram*)) {
+      return std::any_cast<ASTNodeProgram*>(obj);
     } else if (obj.type() == typeid(ASTNodeIdList*)) {
       return std::any_cast<ASTNodeIdList*>(obj);
     } else if (obj.type() == typeid(ASTNodeParameterList*)) {
@@ -32,7 +36,7 @@ ASTNode* astcast(std::any obj) {
 }
 
 std::any DlangCustomVisitor::visitGlobal(DlangParser::GlobalContext* ctx) {
-  ASTNode* n = new ASTNode(program);
+  ASTNodeProgram* n = new ASTNodeProgram(program);
   for (auto decl : ctx->externalDeclaration()) {
     std::any tmp = visit(decl);
     if (tmp.has_value()) {
@@ -116,7 +120,9 @@ std::any DlangCustomVisitor::visitFunctionDefinition(
   }
   // add statements directly as children, and not compounds
   ASTNode* statements = astcast(visit(ctx->compoundStatement()));
-  n->children = statements->children;
+  if (statements) {
+    n->children = statements->children;
+  }
   return n;
 }
 
@@ -135,7 +141,7 @@ std::any DlangCustomVisitor::visitCompoundStatement(
 
 std::any DlangCustomVisitor::visitBlockItemList(
     DlangParser::BlockItemListContext* ctx) {
-  ASTNode* n = new ASTNode();
+  ASTNodeItem* n = new ASTNodeItem();
   for (auto item : ctx->blockItem()) {
     n->addChild(astcast(visit(item)));
   }
@@ -150,15 +156,41 @@ std::any DlangCustomVisitor::visitJumpStatement(
 }
 
 // ASTvisitor accepts
-
-void ASTNode::accept(ASTVisitor* v) {
-  v->treeprint << '(' << token << '\n';
-  for (auto c : children) {
-    if (c) {
-      v->visit(c);
-    }
-  }
-  v->treeprint << ')';
+void ASTNodeItem::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeProgram::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeExpr::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeInt::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeFloat::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeString::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeIdentifier::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeFuncCall::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeReturn::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeFuncDef::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeIdList::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeParameterList::accept(ASTVisitor* v) {
+  v->visit(this);
 }
 
 }  // namespace dlang
