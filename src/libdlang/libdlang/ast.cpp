@@ -166,6 +166,12 @@ std::any DlangCustomVisitor::visitBlockItemList(
   return n;
 }
 
+std::any DlangCustomVisitor::visitAssignmentStatement(
+    DlangParser::AssignmentStatementContext* ctx) {
+  
+  return visit(ctx->assignmentExpression());
+}
+
 std::any DlangCustomVisitor::visitJumpStatement(
     DlangParser::JumpStatementContext* ctx) {
   ASTNodeReturn* n = new ASTNodeReturn(jump);

@@ -42,6 +42,7 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitCompoundStatement(DlangParser::CompoundStatementContext* ctx);
   std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
   std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);
+  std::any visitAssignmentStatement(DlangParser::AssignmentStatementContext* ctx);
   std::any visitDeclaration(DlangParser::DeclarationContext* ctx);
   std::any visitAssignmentExpression(
       DlangParser::AssignmentExpressionContext* ctx);
@@ -50,6 +51,7 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   JumpStatement
   Declaration
   AssignmentExpression
+  AssignmentStatement
     externalDeclataion
     compoundStatemnt
     BlockItemList
@@ -224,15 +226,19 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
   void visit(ASTNodeDecl* n) {
     print_indent();
-    treeprint << "(var " << getType(n->type) << " ";
+    treeprint << "(var " << getType(n->type) << "\n";
     visit_children(n);
+    print_indent();
     treeprint << ")\n";
   }
   void visit(ASTNodeAssign* n) {
     for (auto c : n->children) {
-      treeprint << ((ASTNodeIdentifier*)c)->value << " = ";
+      print_indent();
+      treeprint << "(" << ((ASTNodeIdentifier*)c)->value << " = ";
       visit_children(c);
+      treeprint << ", ";
     }
+    treeprint << ")\n";
   }
   void visit(ASTNodeReturn* n) {
     print_indent();

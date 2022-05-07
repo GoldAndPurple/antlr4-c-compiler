@@ -1,7 +1,7 @@
-float in_global = 0.0;
+float in_global = 0.0, another_global = 1.0;
 int main()
 {
-    char in_local = "c";
+    another_global = 2;
     printf("Hello, world!");
     return 0;
 }
