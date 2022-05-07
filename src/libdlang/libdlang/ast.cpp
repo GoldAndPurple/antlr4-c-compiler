@@ -2,6 +2,21 @@
 
 namespace dlang {
 
+std::string getType(int v) {
+  if (v == type_void) {
+    return "void";
+  } else if (v == type_int) {
+    return "int";
+  } else if (v == type_float) {
+    return "float";
+  } else if (v == type_char) {
+    return "char";
+  } else {
+    // error
+    return "";
+  }
+}
+
 ASTNode* astcast(std::any obj) {
   if (obj.has_value()) {
     if (obj.type() == typeid(ASTNode*)) {
@@ -30,6 +45,10 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeString*>(obj);
     } else if (obj.type() == typeid(ASTNodeIdentifier*)) {
       return std::any_cast<ASTNodeIdentifier*>(obj);
+    } else if (obj.type() == typeid(ASTNodeDecl*)) {
+      return std::any_cast<ASTNodeDecl*>(obj);
+    } else if (obj.type() == typeid(ASTNodeAssign*)) {
+      return std::any_cast<ASTNodeAssign*>(obj);
     }
   }
   return nullptr;
@@ -82,7 +101,7 @@ std::any DlangCustomVisitor::visitPrimeExpr(
 
 std::any DlangCustomVisitor::visitTypeSpecifier(
     DlangParser::TypeSpecifierContext* ctx) {
-  size_t r;
+  int r;
   if (ctx->Void()) {
     r = type_void;
   } else if (ctx->Int()) {
@@ -112,8 +131,7 @@ std::any DlangCustomVisitor::visitFunctionDefinition(
     DlangParser::FunctionDefinitionContext* ctx) {
   ASTNodeFuncDef* n = new ASTNodeFuncDef(funcdef);
   n->name = ctx->Identifier()->getText();
-  n->returntype =
-      std::any_cast<size_t>(visitTypeSpecifier(ctx->typeSpecifier()));
+  n->returntype = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
   auto tmp = visit(ctx->parameterTypeList());
   if (tmp.has_value()) {
     n->parameters = (ASTNodeParameterList*)astcast(tmp);
@@ -155,11 +173,43 @@ std::any DlangCustomVisitor::visitJumpStatement(
   return n;
 }
 
+std::any DlangCustomVisitor::visitDeclaration(
+    DlangParser::DeclarationContext* ctx) {
+  ASTNodeDecl* n = new ASTNodeDecl();
+  
+  //uninitialised identitifiers
+  n->type = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
+  for (auto id : ctx->Identifier()){
+    ASTNodeIdentifier* i = new ASTNodeIdentifier(value_id,id->getText());
+    n->addChild(i);
+  }
+  //assign-expressions
+  for (auto id : ctx->assignmentExpression()){
+    ASTNodeAssign* i = (ASTNodeAssign*)astcast(visit(id));
+    n->addChild(i);
+  }
+
+  return n;
+}
+
+  std::any DlangCustomVisitor::visitAssignmentExpression(DlangParser::AssignmentExpressionContext* ctx){
+    ASTNodeAssign* n = new ASTNodeAssign();
+    ASTNodeIdentifier* i = new ASTNodeIdentifier(value_id,ctx->Identifier()->getText());
+    n->addChild(i);
+    ASTNodeExpr* e = (ASTNodeExpr*)astcast(visit(ctx->expression()));
+    i->addChild(e);
+    return n;
+  }
+
+
 // ASTvisitor accepts
 void ASTNodeItem::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeProgram::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeDecl::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeExpr::accept(ASTVisitor* v) {
@@ -190,6 +240,9 @@ void ASTNodeIdList::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeParameterList::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeAssign::accept(ASTVisitor* v) {
   v->visit(this);
 }
 
