@@ -42,7 +42,8 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitCompoundStatement(DlangParser::CompoundStatementContext* ctx);
   std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
   std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);
-  std::any visitAssignmentStatement(DlangParser::AssignmentStatementContext* ctx);
+  std::any visitAssignmentStatement(
+      DlangParser::AssignmentStatementContext* ctx);
   std::any visitDeclaration(DlangParser::DeclarationContext* ctx);
   std::any visitAssignmentExpression(
       DlangParser::AssignmentExpressionContext* ctx);
@@ -329,19 +330,31 @@ class ASTVisitorPrint : public ASTVisitor {
   }
 };
 
-/*
-ASTNode
-ASTNodeExpr
-ASTNodeInt
-ASTNodeFloat
-ASTNodeString
-ASTNodeIdentifier
-ASTNodeReturn
-ASTNodeFuncCall
-ASTNodeFuncDef
+class CustomErrorListener : public antlr4::BaseErrorListener {
+ public:
+  std::vector<std::string> errors;
 
-ASTNodeIdList
-ASTNodeParameterList
-*/
+  void syntaxError(
+      antlr4::Recognizer* recognizer,
+      antlr4::Token* offendingSymbol,
+      size_t line,
+      size_t charPositionInLine,
+      const std::string& msg,
+      std::exception_ptr e) override {
+    if (recognizer != nullptr && offendingSymbol != nullptr && e != nullptr) {
+      errors.push_back(
+          '<' + std::to_string(line) + ':' +
+          std::to_string(charPositionInLine) + "> " + msg);
+      /* std::cerr << '<' << line << ':' << charPositionInLine << "> " << msg
+                << '\n'; */
+    }
+  }
+};
+
+class Scope {
+ public:
+  Scope* parent;
+  std::map<std::string, int> symtab;
+};
 
 }  // namespace dlang

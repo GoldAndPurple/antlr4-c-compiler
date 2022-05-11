@@ -36,12 +36,23 @@ void dump_ast(std::istream& in, std::ostream& out) {
   antlr4::CommonTokenStream tokens(&lexer);
   DlangParser parser(&tokens);
 
+  CustomErrorListener error_listener;
+  parser.removeErrorListeners();
+  parser.addErrorListener(&error_listener);
+
   /*   out << parser.global()->toStringTree(&parser, true);
     parser.reset(); */
 
   DlangCustomVisitor visitor;
   ASTNodeProgram* result =
       std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
+
+  if (!error_listener.errors.empty()) {
+    for (auto& e : error_listener.errors) {
+      std::cerr << e << '\n';
+    }
+    return;
+  }
   ASTVisitorPrint v;
   v.visit(result);
 
