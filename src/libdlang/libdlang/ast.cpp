@@ -13,7 +13,7 @@ std::string getType(int v) {
     return "char";
   } else {
     // error
-    return "";
+    return std::to_string(v);
   }
 }
 
@@ -21,8 +21,8 @@ ASTNode* astcast(std::any obj) {
   if (obj.has_value()) {
     if (obj.type() == typeid(ASTNode*)) {
       return std::any_cast<ASTNode*>(obj);
-    } else if (obj.type() == typeid(ASTNodeItem*)) {
-      return std::any_cast<ASTNodeItem*>(obj);
+    } else if (obj.type() == typeid(ASTNodeBlock*)) {
+      return std::any_cast<ASTNodeBlock*>(obj);
     } else if (obj.type() == typeid(ASTNodeProgram*)) {
       return std::any_cast<ASTNodeProgram*>(obj);
     } else if (obj.type() == typeid(ASTNodeIdList*)) {
@@ -154,9 +154,13 @@ std::any DlangCustomVisitor::visitFunctionCall(
 
 std::any DlangCustomVisitor::visitCompoundStatement(
     DlangParser::CompoundStatementContext* ctx) {
-  return visit(ctx->blockItemList());
+  ASTNodeBlock* n = new ASTNodeBlock();
+  for (auto item : ctx->blockItemList()->blockItem()) {
+    n->addChild(astcast(visit(item)));
+  }
+  return n;
 }
-
+/*
 std::any DlangCustomVisitor::visitBlockItemList(
     DlangParser::BlockItemListContext* ctx) {
   ASTNodeItem* n = new ASTNodeItem();
@@ -164,7 +168,7 @@ std::any DlangCustomVisitor::visitBlockItemList(
     n->addChild(astcast(visit(item)));
   }
   return n;
-}
+} */
 
 std::any DlangCustomVisitor::visitAssignmentStatement(
     DlangParser::AssignmentStatementContext* ctx) {
@@ -209,7 +213,7 @@ std::any DlangCustomVisitor::visitAssignmentExpression(
 }
 
 // ASTvisitor accepts
-void ASTNodeItem::accept(ASTVisitor* v) {
+void ASTNodeBlock::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeProgram::accept(ASTVisitor* v) {

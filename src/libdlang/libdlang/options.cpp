@@ -53,10 +53,13 @@ void dump_ast(std::istream& in, std::ostream& out) {
     }
     return;
   }
-  ASTVisitorPrint v;
-  v.visit(result);
+  ASTVisitorScope scope_maker;
+  scope_maker.visit(result);
 
-  out << fmt::format("{tree}\n", fmt::arg("tree", v.treeprint.str()));
+  ASTVisitorPrint ast_printer;
+  ast_printer.visit(result);
+
+  out << fmt::format("{tree}\n", fmt::arg("tree", ast_printer.treeprint.str()));
 }
 
 }  // namespace dlang

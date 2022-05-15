@@ -8,7 +8,7 @@ namespace dlang {
 enum {
   invalid,
   program,
-  item,
+  block,
   declaration,
   assignment,
   funcdef,
@@ -40,7 +40,7 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitFunctionCall(DlangParser::FunctionCallContext* ctx);
   std::any visitTypeSpecifier(DlangParser::TypeSpecifierContext* ctx);
   std::any visitCompoundStatement(DlangParser::CompoundStatementContext* ctx);
-  std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
+  // std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
   std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);
   std::any visitAssignmentStatement(
       DlangParser::AssignmentStatementContext* ctx);
@@ -81,15 +81,15 @@ class ASTNodeProgram : public ASTNode {
 
   void accept(ASTVisitor* v) override;
 };
-class ASTNodeItem : public ASTNode {
+class ASTNodeBlock : public ASTNode {
  public:
-  ASTNodeItem(size_t t = item) : ASTNode(t){};
+  ASTNodeBlock(size_t t = block) : ASTNode(t){};
 
   void accept(ASTVisitor* v) override;
 };
 class ASTNodeDecl : public ASTNode {
  public:
-  // children are declared value-ids
+  // children are declared ids or assignment nodes
   int type;
   ASTNodeDecl(size_t t = declaration) : ASTNode(t){};
 
@@ -192,20 +192,64 @@ class ASTNodeReturn : public ASTNode {
 
 class ASTVisitor {
  public:
-  virtual void visit(ASTNodeProgram* n) = 0;
-  virtual void visit(ASTNodeItem* n) = 0;
-  virtual void visit(ASTNodeExpr* n) = 0;
-  virtual void visit(ASTNodeInt* n) = 0;
-  virtual void visit(ASTNodeFloat* n) = 0;
-  virtual void visit(ASTNodeString* n) = 0;
-  virtual void visit(ASTNodeIdentifier* n) = 0;
-  virtual void visit(ASTNodeDecl* n) = 0;
-  virtual void visit(ASTNodeReturn* n) = 0;
-  virtual void visit(ASTNodeFuncCall* n) = 0;
-  virtual void visit(ASTNodeFuncDef* n) = 0;
-  virtual void visit(ASTNodeAssign* n) = 0;
-  virtual void visit(ASTNodeIdList* n) = 0;
-  virtual void visit(ASTNodeParameterList* n) = 0;
+  virtual void visit(ASTNodeProgram* n) { visit_children(n); }
+  virtual void visit(ASTNodeBlock* n) { visit_children(n); }
+  virtual void visit(ASTNodeExpr* n) { visit_children(n); }
+  virtual void visit(ASTNodeInt* n) { visit_children(n); }
+  virtual void visit(ASTNodeFloat* n) { visit_children(n); }
+  virtual void visit(ASTNodeString* n) { visit_children(n); }
+  virtual void visit(ASTNodeIdentifier* n) { visit_children(n); }
+  virtual void visit(ASTNodeDecl* n) { visit_children(n); }
+  virtual void visit(ASTNodeReturn* n) { visit_children(n); }
+  virtual void visit(ASTNodeFuncCall* n) { visit_children(n); }
+  virtual void visit(ASTNodeFuncDef* n) { visit_children(n); }
+  virtual void visit(ASTNodeAssign* n) { visit_children(n); }
+  virtual void visit(ASTNodeIdList* n) { visit_children(n); }
+  virtual void visit(ASTNodeParameterList* n) { visit_children(n); }
+
+  virtual void visit_children(ASTNode* n) {
+    for (auto c : n->children) {
+      if (c->getToken() == idlist) {
+        visit((ASTNodeIdList*)c);
+
+      } else if (c->getToken() == paramlist) {
+        visit((ASTNodeParameterList*)c);
+
+      } else if (c->getToken() == funcdef) {
+        visit((ASTNodeFuncDef*)c);
+
+      } else if (c->getToken() == funccall) {
+        visit((ASTNodeFuncCall*)c);
+
+      } else if (c->getToken() == block) {
+        visit((ASTNodeBlock*)c);
+
+      } else if (c->getToken() == jump) {
+        visit((ASTNodeReturn*)c);
+
+      } else if (c->getToken() == expr) {
+        visit((ASTNodeExpr*)c);
+
+      } else if (c->getToken() == value_int) {
+        visit((ASTNodeInt*)c);
+
+      } else if (c->getToken() == value_float) {
+        visit((ASTNodeFloat*)c);
+
+      } else if (c->getToken() == value_string) {
+        visit((ASTNodeString*)c);
+
+      } else if (c->getToken() == value_id) {
+        visit((ASTNodeIdentifier*)c);
+      } else if (c->getToken() == declaration) {
+        visit((ASTNodeDecl*)c);
+      } else if (c->getToken() == assignment) {
+        visit((ASTNodeAssign*)c);
+      } else {
+        // invalid token
+      }
+    }
+  }
 };
 
 class ASTVisitorPrint : public ASTVisitor {
@@ -213,14 +257,17 @@ class ASTVisitorPrint : public ASTVisitor {
   std::stringstream treeprint;
   int indent = 0;
 
-  // add visiting of child nodes to placeholders as well
+  void visit_children(ASTNode* n) {
+    indent += 1;
+    ASTVisitor::visit_children(n);
+    indent -= 1;
+  }
+
   void visit(ASTNodeProgram* n) {
     treeprint << "(program\n";
     visit_children(n);
     treeprint << ')';
   }
-  void visit(ASTNodeItem* n) { visit_children(n); }
-  void visit(ASTNodeExpr* n) { visit_children(n); }
   void visit(ASTNodeInt* n) { treeprint << n->value; }
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
@@ -237,7 +284,7 @@ class ASTVisitorPrint : public ASTVisitor {
       print_indent();
       treeprint << "(" << ((ASTNodeIdentifier*)c)->value << " = ";
       visit_children(c);
-      treeprint << ", ";
+      treeprint << " ";
     }
     treeprint << ")\n";
   }
@@ -281,53 +328,6 @@ class ASTVisitorPrint : public ASTVisitor {
       treeprint << "  ";
     }
   }
-  void visit_children(ASTNode* n) {
-    indent += 1;
-    for (auto c : n->children) {
-      if (c->getToken() == idlist) {
-        visit((ASTNodeIdList*)c);
-
-      } else if (c->getToken() == paramlist) {
-        visit((ASTNodeParameterList*)c);
-
-      } else if (c->getToken() == funcdef) {
-        visit((ASTNodeFuncDef*)c);
-
-      } else if (c->getToken() == funccall) {
-        visit((ASTNodeFuncCall*)c);
-
-      } else if (c->getToken() == item) {
-        visit((ASTNodeItem*)c);
-
-      } else if (c->getToken() == jump) {
-        visit((ASTNodeReturn*)c);
-
-      } else if (c->getToken() == expr) {
-        visit((ASTNodeExpr*)c);
-
-      } else if (c->getToken() == value_int) {
-        visit((ASTNodeInt*)c);
-
-      } else if (c->getToken() == value_float) {
-        visit((ASTNodeFloat*)c);
-
-      } else if (c->getToken() == value_string) {
-        visit((ASTNodeString*)c);
-
-      } else if (c->getToken() == value_id) {
-        visit((ASTNodeIdentifier*)c);
-      } else if (c->getToken() == declaration) {
-        visit((ASTNodeDecl*)c);
-      } else if (c->getToken() == assignment) {
-        visit((ASTNodeAssign*)c);
-      } else {
-        // invalid token
-      }
-
-      // treeprint << '\n';
-    }
-    indent -= 1;
-  }
 };
 
 class CustomErrorListener : public antlr4::BaseErrorListener {
@@ -351,10 +351,86 @@ class CustomErrorListener : public antlr4::BaseErrorListener {
   }
 };
 
+// using Value = std::pair(int, std::variant<int,float,std::string>);
+
 class Scope {
  public:
   Scope* parent;
+  std::vector<Scope*> children;
   std::map<std::string, int> symtab;
+
+  Scope(Scope* p) : parent(p) {}
+  void nest_scope(Scope* c) { children.push_back(c); }
+
+  bool declared(std::string id) { return (symtab.find(id) != symtab.end()); }
+  bool exists(std::string id) {
+    Scope* tmp = this;
+    while (tmp != nullptr) {
+      if (tmp->declared(id)) {
+        return true;
+      }
+      tmp = tmp->parent;
+    }
+    return false;
+  }
+  void add(std::string id, int type) {
+    if (declared(id)) { /* redeclaration error */
+    } else {
+      symtab[id] = type;
+    }
+  }
+};
+
+class ASTVisitorScope : public ASTVisitor {
+ public:
+  Scope global = Scope(nullptr);
+  Scope* current = &global;
+
+  void visit(ASTNodeProgram* n) { visit_children(n); }
+
+  void visit(ASTNodeFuncDef* n) {
+    Scope* s = new Scope(current);
+    current->nest_scope(s);
+    current = s;
+
+    if (n->parameters != nullptr) {
+      auto names = n->parameters->param_names;
+      auto types = n->parameters->param_types;
+      for (size_t i = 0; i < names.size(); i++) {
+        s->add(names[i], types[i]);
+      }
+    }
+
+    visit_children(n);
+    current = s->parent;
+  }
+
+  void visit(ASTNodeBlock* n) {
+    Scope* s = new Scope(current);
+    current->nest_scope(s);
+    current = s;
+    visit_children(n);
+    current = s->parent;
+  }
+
+  void visit(ASTNodeDecl* n) {
+    for (auto c : n->children) {
+      ASTNodeIdentifier* tmp;
+      if (c->getToken() == value_id) {
+        tmp = (ASTNodeIdentifier*)c;
+      } else /* if (c->getToken() == assignment) */ {
+        tmp = (ASTNodeIdentifier*)c->children[0];
+      }
+      current->add(tmp->value, n->type);
+    }
+  }
+
+  void visit(ASTNodeIdentifier* n) {
+    if (current->exists(n->value)){
+      return;
+    }
+    /* undeclared error */
+  }
 };
 
 }  // namespace dlang
