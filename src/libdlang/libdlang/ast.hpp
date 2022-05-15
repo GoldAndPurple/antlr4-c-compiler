@@ -374,7 +374,9 @@ class Scope {
     return false;
   }
   void add(std::string id, int type) {
-    if (declared(id)) { /* redeclaration error */
+    if (declared(id)) {
+      /* redeclaration error */
+      throw std::runtime_error("id \"" + id + "\" redeclared");
     } else {
       symtab[id] = type;
     }
@@ -426,10 +428,11 @@ class ASTVisitorScope : public ASTVisitor {
   }
 
   void visit(ASTNodeIdentifier* n) {
-    if (current->exists(n->value)){
+    if (current->exists(n->value)) {
       return;
     }
     /* undeclared error */
+    throw std::runtime_error("id \"" + n->value + "\" not declared");
   }
 };
 

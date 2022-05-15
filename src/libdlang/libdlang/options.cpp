@@ -54,7 +54,12 @@ void dump_ast(std::istream& in, std::ostream& out) {
     return;
   }
   ASTVisitorScope scope_maker;
-  scope_maker.visit(result);
+  try {
+    scope_maker.visit(result);
+  } catch (const std::runtime_error& e) {
+    std::cerr << e.what() << "\n";
+    return;
+  }
 
   ASTVisitorPrint ast_printer;
   ast_printer.visit(result);
