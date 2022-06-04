@@ -32,7 +32,7 @@ std::string getType(int v);
 class DlangCustomVisitor : public DlangParserBaseVisitor {
  public:
   std::any visitGlobal(DlangParser::GlobalContext* ctx);
-  std::any visitPrimeExpr(DlangParser::PrimeExprContext* ctx);
+  std::any visitPrimaryExpression(DlangParser::PrimaryExpressionContext* ctx);
   std::any visitIdentifierList(DlangParser::IdentifierListContext* ctx);
   std::any visitFunctionParameterList(
       DlangParser::FunctionParameterListContext* ctx);
@@ -40,13 +40,14 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitFunctionCall(DlangParser::FunctionCallContext* ctx);
   std::any visitTypeSpecifier(DlangParser::TypeSpecifierContext* ctx);
   std::any visitCompoundStatement(DlangParser::CompoundStatementContext* ctx);
-  // std::any visitBlockItemList(DlangParser::BlockItemListContext* ctx);
   std::any visitJumpStatement(DlangParser::JumpStatementContext* ctx);
   std::any visitAssignmentStatement(
       DlangParser::AssignmentStatementContext* ctx);
   std::any visitDeclaration(DlangParser::DeclarationContext* ctx);
   std::any visitAssignmentExpression(
       DlangParser::AssignmentExpressionContext* ctx);
+  std::any visitMulDivExpr(DlangParser::MulDivExprContext* ctx);
+  std::any visitAddsubExpr(DlangParser::AddsubExprContext* ctx);
 
   /*
   JumpStatement
@@ -207,47 +208,51 @@ class ASTVisitor {
   virtual void visit(ASTNodeIdList* n) { visit_children(n); }
   virtual void visit(ASTNodeParameterList* n) { visit_children(n); }
 
+  virtual void visit(ASTNode* c) {
+    if (c->getToken() == idlist) {
+      visit((ASTNodeIdList*)c);
+
+    } else if (c->getToken() == paramlist) {
+      visit((ASTNodeParameterList*)c);
+
+    } else if (c->getToken() == funcdef) {
+      visit((ASTNodeFuncDef*)c);
+
+    } else if (c->getToken() == funccall) {
+      visit((ASTNodeFuncCall*)c);
+
+    } else if (c->getToken() == block) {
+      visit((ASTNodeBlock*)c);
+
+    } else if (c->getToken() == jump) {
+      visit((ASTNodeReturn*)c);
+
+    } else if (c->getToken() == expr) {
+      visit((ASTNodeExpr*)c);
+
+    } else if (c->getToken() == value_int) {
+      visit((ASTNodeInt*)c);
+
+    } else if (c->getToken() == value_float) {
+      visit((ASTNodeFloat*)c);
+
+    } else if (c->getToken() == value_string) {
+      visit((ASTNodeString*)c);
+
+    } else if (c->getToken() == value_id) {
+      visit((ASTNodeIdentifier*)c);
+    } else if (c->getToken() == declaration) {
+      visit((ASTNodeDecl*)c);
+    } else if (c->getToken() == assignment) {
+      visit((ASTNodeAssign*)c);
+    } else {
+      // invalid token
+    }
+  }
+
   virtual void visit_children(ASTNode* n) {
     for (auto c : n->children) {
-      if (c->getToken() == idlist) {
-        visit((ASTNodeIdList*)c);
-
-      } else if (c->getToken() == paramlist) {
-        visit((ASTNodeParameterList*)c);
-
-      } else if (c->getToken() == funcdef) {
-        visit((ASTNodeFuncDef*)c);
-
-      } else if (c->getToken() == funccall) {
-        visit((ASTNodeFuncCall*)c);
-
-      } else if (c->getToken() == block) {
-        visit((ASTNodeBlock*)c);
-
-      } else if (c->getToken() == jump) {
-        visit((ASTNodeReturn*)c);
-
-      } else if (c->getToken() == expr) {
-        visit((ASTNodeExpr*)c);
-
-      } else if (c->getToken() == value_int) {
-        visit((ASTNodeInt*)c);
-
-      } else if (c->getToken() == value_float) {
-        visit((ASTNodeFloat*)c);
-
-      } else if (c->getToken() == value_string) {
-        visit((ASTNodeString*)c);
-
-      } else if (c->getToken() == value_id) {
-        visit((ASTNodeIdentifier*)c);
-      } else if (c->getToken() == declaration) {
-        visit((ASTNodeDecl*)c);
-      } else if (c->getToken() == assignment) {
-        visit((ASTNodeAssign*)c);
-      } else {
-        // invalid token
-      }
+      visit(c);
     }
   }
 };
@@ -272,6 +277,13 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
   void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
+  void visit(ASTNodeExpr* n) {
+    treeprint << '(';
+    ASTVisitor::visit((ASTNode*)n->children[0]);
+    treeprint << ' ' << n->exprtype << ' ';
+    ASTVisitor::visit((ASTNode*)n->children[1]);
+    treeprint << ')';
+  }
   void visit(ASTNodeDecl* n) {
     print_indent();
     treeprint << "(var " << getType(n->type) << "\n";
@@ -356,10 +368,11 @@ class CustomErrorListener : public antlr4::BaseErrorListener {
 class Scope {
  public:
   Scope* parent;
+  std::string name;
   std::vector<Scope*> children;
   std::map<std::string, int> symtab;
 
-  Scope(Scope* p) : parent(p) {}
+  Scope(Scope* p, const std::string n = "") : parent(p), name(n) {}
   void nest_scope(Scope* c) { children.push_back(c); }
 
   bool declared(std::string id) { return (symtab.find(id) != symtab.end()); }
@@ -391,8 +404,9 @@ class ASTVisitorScope : public ASTVisitor {
   void visit(ASTNodeProgram* n) { visit_children(n); }
 
   void visit(ASTNodeFuncDef* n) {
-    Scope* s = new Scope(current);
+    Scope* s = new Scope(current, n->name);
     current->nest_scope(s);
+    global.add(n->name, funcdef);
     current = s;
 
     if (n->parameters != nullptr) {

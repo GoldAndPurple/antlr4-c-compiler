@@ -77,8 +77,7 @@ std::any DlangCustomVisitor::visitIdentifierList(
   return n;
 }
 
-std::any DlangCustomVisitor::visitPrimeExpr(
-    DlangParser::PrimeExprContext* ctx) {
+std::any DlangCustomVisitor::visitPrimaryExpression(DlangParser::PrimaryExpressionContext* ctx){
   ASTNode* node = nullptr;
   auto t = ctx->getStart()->getType();
   /* std::cout << ctx->getText() << '\n'; */
@@ -91,11 +90,40 @@ std::any DlangCustomVisitor::visitPrimeExpr(
   } else if (t == DlangParser::String) {
     node = new ASTNodeString(value_string, ctx->getStart()->getText());
   } else if (t == DlangParser::LeftParen) {
-    /* node = new ASTNodeExpr();
-    node->addChild(std::any_cast<ASTNodeExpr>(ctx->expression()))); */
+    // visitation return nothng for some bloody reason
+    node = astcast(visit(ctx->expression()));
   } else {
     // errors
   }
+  return node;
+}
+
+std::any DlangCustomVisitor::visitMulDivExpr(
+    DlangParser::MulDivExprContext* ctx) {
+  char e;
+  if (ctx->Star()) {
+    e = '*';
+  } else if (ctx->Div()) {
+    e = '/';
+  } else {
+    e = '%';
+  }
+  ASTNodeExpr* node = new ASTNodeExpr(expr, e);
+  node->addChild(astcast(visit(ctx->expression()[0])));
+  node->addChild(astcast(visit(ctx->expression()[1])));
+  return node;
+}
+std::any DlangCustomVisitor::visitAddsubExpr(
+    DlangParser::AddsubExprContext* ctx) {
+  char e;
+  if (ctx->Plus()) {
+    e = '+';
+  } else {
+    e = '-';
+  }
+  ASTNodeExpr* node = new ASTNodeExpr(expr, e);
+  node->addChild(astcast(visit(ctx->expression()[0])));
+  node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
 }
 
@@ -132,9 +160,9 @@ std::any DlangCustomVisitor::visitFunctionDefinition(
   ASTNodeFuncDef* n = new ASTNodeFuncDef(funcdef);
   n->name = ctx->Identifier()->getText();
   n->returntype = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
-  auto tmp = visit(ctx->parameterTypeList());
-  if (tmp.has_value()) {
-    n->parameters = (ASTNodeParameterList*)astcast(tmp);
+  if (ctx->parameterTypeList()) {
+    n->parameters =
+        (ASTNodeParameterList*)astcast(visit(ctx->parameterTypeList()));
   }
   // add statements directly as children, and not compounds
   ASTNode* statements = astcast(visit(ctx->compoundStatement()));
@@ -207,7 +235,7 @@ std::any DlangCustomVisitor::visitAssignmentExpression(
   ASTNodeIdentifier* i =
       new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
   n->addChild(i);
-  ASTNodeExpr* e = (ASTNodeExpr*)astcast(visit(ctx->expression()));
+  ASTNode* e = (ASTNode*)astcast(visit(ctx->expression()));
   i->addChild(e);
   return n;
 }

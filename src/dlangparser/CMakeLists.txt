@@ -2,7 +2,7 @@ set(app_name dlangparser)
 
 add_executable(${app_name})
 
-target_include_directories(${app_name} PRIVATE .)
+target_include_directories(${app_name} PRIVATE)
 
 include(CompileOptions)
 set_compile_options(${app_name})
