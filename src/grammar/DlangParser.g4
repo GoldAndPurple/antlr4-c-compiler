@@ -79,7 +79,7 @@ primaryExpression
     ;
 
 conditionalExpression
-    :   expression ConditionalOperator expression                               # basicConditionalExpr
+    :   expression conditionalOperator expression                               # basicConditionalExpr
     |   conditionalExpression ConditionalConnectOperator conditionalExpression  # connectedConditionalExpr
     |   LeftParen conditionalExpression RightParen                              # parenthesizedConditionalExpr
     |   Not LeftParen conditionalExpression RightParen                          # negatedConditionalExpr
@@ -141,4 +141,13 @@ unaryStatement
     |   MinusMinus Identifier  # unaryDecrementStatement
     |   Identifier PlusPlus    # unaryIncrementStatement
     |   Identifier MinusMinus  # unaryDecrementStatement
+    ;
+
+conditionalOperator
+    :   Less
+    |   LessEqual
+    |   Greater
+    |   GreaterEqual
+    |   Equal
+    |   NotEqual
     ;

@@ -49,6 +49,8 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeDecl*>(obj);
     } else if (obj.type() == typeid(ASTNodeAssign*)) {
       return std::any_cast<ASTNodeAssign*>(obj);
+    } else if (obj.type() == typeid(ASTNodeConditional*)) {
+      return std::any_cast<ASTNodeConditional*>(obj);
     }
   }
   return nullptr;
@@ -90,7 +92,6 @@ std::any DlangCustomVisitor::visitPrimaryExpression(DlangParser::PrimaryExpressi
   } else if (t == DlangParser::String) {
     node = new ASTNodeString(value_string, ctx->getStart()->getText());
   } else if (t == DlangParser::LeftParen) {
-    // visitation return nothng for some bloody reason
     node = astcast(visit(ctx->expression()));
   } else {
     // errors
@@ -108,7 +109,7 @@ std::any DlangCustomVisitor::visitMulDivExpr(
   } else {
     e = '%';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, e);
+  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1,e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -121,7 +122,7 @@ std::any DlangCustomVisitor::visitAddsubExpr(
   } else {
     e = '-';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, e);
+  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1,e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -240,6 +241,21 @@ std::any DlangCustomVisitor::visitAssignmentExpression(
   return n;
 }
 
+std::any DlangCustomVisitor::visitBasicConditionalExpr(DlangParser::BasicConditionalExprContext* ctx){
+  ASTNodeExpr* n = new ASTNodeExpr(expr, ctx->conditionalOperator()->getText());
+  n->addChild(astcast(visit(ctx->expression()[0])));
+  n->addChild(astcast(visit(ctx->expression()[1])));
+  return n;
+}
+
+std::any DlangCustomVisitor::visitIfStatement(DlangParser::IfStatementContext* ctx){
+  ASTNodeConditional* n = new ASTNodeConditional();
+  n->condition = (ASTNodeExpr*)astcast(visit(ctx->conditionalExpression()));
+  n->addChild(astcast(visit(ctx->statement())));
+  return n;
+}
+
+
 // ASTvisitor accepts
 void ASTNodeBlock::accept(ASTVisitor* v) {
   v->visit(this);
@@ -281,6 +297,9 @@ void ASTNodeParameterList::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeAssign::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeConditional::accept(ASTVisitor* v) {
   v->visit(this);
 }
 

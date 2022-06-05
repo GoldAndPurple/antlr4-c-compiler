@@ -17,6 +17,7 @@ enum {
   idlist,
   jump,
   expr,
+  cond,
   value_id,
   value_string,
   value_int,
@@ -48,6 +49,8 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
       DlangParser::AssignmentExpressionContext* ctx);
   std::any visitMulDivExpr(DlangParser::MulDivExprContext* ctx);
   std::any visitAddsubExpr(DlangParser::AddsubExprContext* ctx);
+  std::any visitBasicConditionalExpr(DlangParser::BasicConditionalExprContext* ctx);
+  std::any visitIfStatement(DlangParser::IfStatementContext* ctx);
 
   /*
   JumpStatement
@@ -134,9 +137,19 @@ class ASTNodeFuncDef : public ASTNode {
 
 class ASTNodeExpr : public ASTNode {
  public:
-  char exprtype;
+  std::string exprtype;
 
-  ASTNodeExpr(size_t t, char v) : ASTNode(t), exprtype(v){};
+  ASTNodeExpr(size_t t, const std::string v) : ASTNode(t), exprtype(v){};
+
+  void accept(ASTVisitor* v) override;
+};
+
+class ASTNodeConditional : public ASTNode {
+  public:
+  ASTNodeExpr* condition;
+  ASTNodeConditional* elseif;
+  // linked list of cond expressions
+  ASTNodeConditional(size_t t = cond) : ASTNode(t){};
 
   void accept(ASTVisitor* v) override;
 };
@@ -207,10 +220,14 @@ class ASTVisitor {
   virtual void visit(ASTNodeAssign* n) { visit_children(n); }
   virtual void visit(ASTNodeIdList* n) { visit_children(n); }
   virtual void visit(ASTNodeParameterList* n) { visit_children(n); }
+  virtual void visit(ASTNodeConditional* n) { visit_children(n); }
 
   virtual void visit(ASTNode* c) {
     if (c->getToken() == idlist) {
       visit((ASTNodeIdList*)c);
+
+    } else if (c->getToken() == cond) {
+      visit((ASTNodeConditional*)c);
 
     } else if (c->getToken() == paramlist) {
       visit((ASTNodeParameterList*)c);
@@ -277,6 +294,14 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
   void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
+  void visit(ASTNodeConditional* n) { 
+    // no if else management
+    print_indent();
+    treeprint << "if ";
+    visit(n->condition);
+    treeprint << " then\n";
+    visit_children(n);
+    }
   void visit(ASTNodeExpr* n) {
     treeprint << '(';
     ASTVisitor::visit((ASTNode*)n->children[0]);

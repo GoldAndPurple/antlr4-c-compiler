@@ -106,15 +106,6 @@ ConditionalConnectOperator
     |   AndAnd
     ;
 
-ConditionalOperator
-    :   Less
-    |   LessEqual
-    |   Greater
-    |   GreaterEqual
-    |   Equal
-    |   NotEqual
-    ;
-
 IntegerConstant
     :   '-'? NonzeroDigit Digit*
     |   '0'
