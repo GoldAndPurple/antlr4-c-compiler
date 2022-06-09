@@ -20,7 +20,7 @@ typeSpecifier
     |   Char
     |   Int
     |   Float
-    )
+    ) (Star)?
     ;
 
 blockItemList
@@ -109,7 +109,7 @@ expressionStatement
     ;
 
 ifElseStatement
-    :   ifStatement elseIfStatement* elseStatement*
+    :   ifStatement elseIfStatement* elseStatement?
     ;
 
 ifStatement

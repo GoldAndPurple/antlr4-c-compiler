@@ -12,7 +12,7 @@ function(set_compile_options target_name)
   if(MSVC)
     target_compile_options(${target_name} PRIVATE /W4 /WX)
   else()
-    target_compile_options(${target_name} PRIVATE -Wall -Wextra -Werror -pedantic)
+    target_compile_options(${target_name} PRIVATE -Wno-unused-parameter -Wall -Wextra -Werror -pedantic)
   endif()
 
   target_set_cxx_standart(${target_name})

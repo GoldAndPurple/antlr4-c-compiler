@@ -11,10 +11,16 @@ std::string getType(int v) {
     return "float";
   } else if (v == type_char) {
     return "char";
-  } else {
-    // error
-    return std::to_string(v);
+  } else if (v == type_void_pointer) {
+    return "void*";
+  } else if (v == type_int_pointer) {
+    return "int*";
+  } else if (v == type_float_pointer) {
+    return "float*";
+  } else if (v == type_char_pointer) {
+    return "char*";
   }
+  return "non-type";
 }
 
 ASTNode* astcast(std::any obj) {
@@ -79,7 +85,8 @@ std::any DlangCustomVisitor::visitIdentifierList(
   return n;
 }
 
-std::any DlangCustomVisitor::visitPrimaryExpression(DlangParser::PrimaryExpressionContext* ctx){
+std::any DlangCustomVisitor::visitPrimaryExpression(
+    DlangParser::PrimaryExpressionContext* ctx) {
   ASTNode* node = nullptr;
   auto t = ctx->getStart()->getType();
   /* std::cout << ctx->getText() << '\n'; */
@@ -109,7 +116,7 @@ std::any DlangCustomVisitor::visitMulDivExpr(
   } else {
     e = '%';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1,e));
+  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1, e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -122,7 +129,7 @@ std::any DlangCustomVisitor::visitAddsubExpr(
   } else {
     e = '-';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1,e));
+  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1, e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -137,10 +144,11 @@ std::any DlangCustomVisitor::visitTypeSpecifier(
     r = type_int;
   } else if (ctx->Float()) {
     r = type_float;
-  } else if (ctx->Char()) {
+  } else /* if (ctx->Char()) */ {
     r = type_char;
-  } else {
-    // error
+  }
+  if (ctx->Star()) {
+    r += 4;
   }
   return r;
 }
@@ -156,15 +164,22 @@ std::any DlangCustomVisitor::visitFunctionParameterList(
   return n;
 }
 
+std::any DlangCustomVisitor::visitParameterTypeList(
+    DlangParser::ParameterTypeListContext* ctx) {
+  auto tmp = ctx->functionParameterList();
+  if (tmp) {
+    return visitFunctionParameterList(tmp);
+  }
+  return nullptr;
+}
+
 std::any DlangCustomVisitor::visitFunctionDefinition(
     DlangParser::FunctionDefinitionContext* ctx) {
   ASTNodeFuncDef* n = new ASTNodeFuncDef(funcdef);
   n->name = ctx->Identifier()->getText();
   n->returntype = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
-  if (ctx->parameterTypeList()) {
-    n->parameters =
-        (ASTNodeParameterList*)astcast(visit(ctx->parameterTypeList()));
-  }
+  auto tmp = visit(ctx->parameterTypeList());
+  n->parameters = (ASTNodeParameterList*)astcast(tmp);
   // add statements directly as children, and not compounds
   ASTNode* statements = astcast(visit(ctx->compoundStatement()));
   if (statements) {
@@ -241,20 +256,21 @@ std::any DlangCustomVisitor::visitAssignmentExpression(
   return n;
 }
 
-std::any DlangCustomVisitor::visitBasicConditionalExpr(DlangParser::BasicConditionalExprContext* ctx){
+std::any DlangCustomVisitor::visitBasicConditionalExpr(
+    DlangParser::BasicConditionalExprContext* ctx) {
   ASTNodeExpr* n = new ASTNodeExpr(expr, ctx->conditionalOperator()->getText());
   n->addChild(astcast(visit(ctx->expression()[0])));
   n->addChild(astcast(visit(ctx->expression()[1])));
   return n;
 }
 
-std::any DlangCustomVisitor::visitIfStatement(DlangParser::IfStatementContext* ctx){
+std::any DlangCustomVisitor::visitIfStatement(
+    DlangParser::IfStatementContext* ctx) {
   ASTNodeConditional* n = new ASTNodeConditional();
   n->condition = (ASTNodeExpr*)astcast(visit(ctx->conditionalExpression()));
   n->addChild(astcast(visit(ctx->statement())));
   return n;
 }
-
 
 // ASTvisitor accepts
 void ASTNodeBlock::accept(ASTVisitor* v) {

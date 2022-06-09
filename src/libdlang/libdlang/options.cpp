@@ -50,10 +50,11 @@ void parse(std::istream& in) {
 
   //symtab creation
   ASTVisitorScope scope_maker;
-  try {
-    scope_maker.visit(result);
-  } catch (const std::runtime_error& e) {
-    std::cerr << e.what() << "\n";
+  scope_maker.visit(result);
+  if (!scope_maker.errors.empty()){
+    for (auto& e : error_listener.errors) {
+      std::cerr << e << '\n';
+    }
     return;
   }
 
@@ -62,7 +63,12 @@ void parse(std::istream& in) {
   ast_printer.visit(result);
   std::cout << ast_printer.treeprint.str();
 
+  std::cout << '\n' << '\n' << '\n';
 
+  //codegen
+  ASTVisitorCodegen generator(&(scope_maker.global));
+  generator.visit(result);
+  generator.mod->print(llvm::outs(), nullptr);
 }
 
 void dump_tokens(std::istream& in, std::ostream& out) {

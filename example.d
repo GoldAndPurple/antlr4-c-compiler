@@ -1,4 +1,8 @@
-float in_global = 0.0;
+int in_global = 6;
+
+int print(char* str){
+    return 0;
+}
 
 int main()
 {
@@ -7,7 +11,7 @@ int main()
         local = 3;
     }
     if (local > 0){
-        printf("Hello, world!");
+        print("Hello, world!");
     }
     return 0;
 }

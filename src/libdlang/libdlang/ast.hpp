@@ -2,9 +2,11 @@
 
 #include <DlangLexer.h>
 
+#include <llvm/IR/IRBuilder.h>
 #include "DlangParserBaseVisitor.h"
 
 namespace dlang {
+
 enum {
   invalid,
   program,
@@ -26,6 +28,10 @@ enum {
   type_int,
   type_float,
   type_char,
+  type_void_pointer,
+  type_int_pointer,
+  type_float_pointer,
+  type_char_pointer,
 };
 
 std::string getType(int v);
@@ -37,6 +43,7 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitIdentifierList(DlangParser::IdentifierListContext* ctx);
   std::any visitFunctionParameterList(
       DlangParser::FunctionParameterListContext* ctx);
+  std::any visitParameterTypeList(DlangParser::ParameterTypeListContext* ctx);
   std::any visitFunctionDefinition(DlangParser::FunctionDefinitionContext* ctx);
   std::any visitFunctionCall(DlangParser::FunctionCallContext* ctx);
   std::any visitTypeSpecifier(DlangParser::TypeSpecifierContext* ctx);
@@ -49,7 +56,8 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
       DlangParser::AssignmentExpressionContext* ctx);
   std::any visitMulDivExpr(DlangParser::MulDivExprContext* ctx);
   std::any visitAddsubExpr(DlangParser::AddsubExprContext* ctx);
-  std::any visitBasicConditionalExpr(DlangParser::BasicConditionalExprContext* ctx);
+  std::any visitBasicConditionalExpr(
+      DlangParser::BasicConditionalExprContext* ctx);
   std::any visitIfStatement(DlangParser::IfStatementContext* ctx);
 
   /*
@@ -145,7 +153,7 @@ class ASTNodeExpr : public ASTNode {
 };
 
 class ASTNodeConditional : public ASTNode {
-  public:
+ public:
   ASTNodeExpr* condition;
   ASTNodeConditional* elseif;
   // linked list of cond expressions
@@ -294,14 +302,14 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
   void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
-  void visit(ASTNodeConditional* n) { 
+  void visit(ASTNodeConditional* n) {
     // no if else management
     print_indent();
     treeprint << "if ";
     visit(n->condition);
     treeprint << " then\n";
     visit_children(n);
-    }
+  }
   void visit(ASTNodeExpr* n) {
     treeprint << '(';
     ASTVisitor::visit((ASTNode*)n->children[0]);
@@ -411,27 +419,46 @@ class Scope {
     }
     return false;
   }
-  void add(std::string id, int type) {
+  int add(std::string id, int type) {
     if (declared(id)) {
       /* redeclaration error */
-      throw std::runtime_error("id \"" + id + "\" redeclared");
-    } else {
-      symtab[id] = type;
+      return -1;
     }
+    symtab[id] = type;
+    return 0;
+  }
+  int get(std::string id) {
+    Scope* tmp = this;
+    while (tmp != nullptr) {
+      if (tmp->declared(id)) {
+        return symtab[id];
+      }
+      tmp = tmp->parent;
+    }
+    return -1;
   }
 };
 
 class ASTVisitorScope : public ASTVisitor {
  public:
+  std::vector<std::string> errors;
   Scope global = Scope(nullptr);
   Scope* current = &global;
 
-  void visit(ASTNodeProgram* n) { visit_children(n); }
+  void visit(ASTNodeProgram* n) {
+    visit_children(n);
+    if ((global.declared("main") == false) ||
+        (global.symtab["main"] != funcdef)) {
+      errors.push_back("main function not declared");
+    }
+  }
 
   void visit(ASTNodeFuncDef* n) {
     Scope* s = new Scope(current, n->name);
     current->nest_scope(s);
-    global.add(n->name, funcdef);
+    if (global.add(n->name, funcdef) == -1) {
+      errors.push_back("id \"" + n->name + "\" redeclared");
+    }
     current = s;
 
     if (n->parameters != nullptr) {
@@ -462,16 +489,120 @@ class ASTVisitorScope : public ASTVisitor {
       } else /* if (c->getToken() == assignment) */ {
         tmp = (ASTNodeIdentifier*)c->children[0];
       }
-      current->add(tmp->value, n->type);
+      if (current->add(tmp->value, n->type) == -1) {
+        errors.push_back("id \"" + tmp->value + "\" redeclared");
+      }
+    }
+  }
+  /*
+  type-checking for expressions
+    void visit(ASTNodeExpr* n){
+
+    } */
+
+  void visit(ASTNodeIdentifier* n) {
+    if (!current->exists(n->value)) {
+      errors.push_back("id \"" + n->value + "\" not declared");
+    }
+  }
+};
+
+class ASTVisitorCodegen : public ASTVisitor {
+ public:
+  llvm::LLVMContext* context;
+  llvm::IRBuilder<>* builder;
+  llvm::Module* mod;
+  // std::map<std::string, llvm::Value*> values;
+  Scope* global;
+  Scope* current_scope;
+
+  ASTVisitorCodegen(Scope* g) : global(g) {
+    context = new llvm::LLVMContext();
+    mod = new llvm::Module("d-compiler", *context);
+    builder = new llvm::IRBuilder<>(*context);
+    current_scope = global;
+  };
+
+  llvm::Type* llvmtype(int v) {
+    if (v == type_void) {
+      return llvm::Type::getVoidTy(*context);
+    } else if (v == type_int) {
+      return llvm::Type::getInt32Ty(*context);
+    } else if (v == type_float) {
+      return llvm::Type::getFloatTy(*context);
+    } else if (v == type_char) {
+      return llvm::Type::getInt8Ty(*context);
+      ;
+    } else if (v == type_void_pointer) {
+      return llvm::Type::getInt8Ty(*context);
+      ;
+    } else if (v == type_int_pointer) {
+      return llvm::Type::getInt32PtrTy(*context);
+    } else if (v == type_float_pointer) {
+      return llvm::Type::getFloatPtrTy(*context);
+      ;
+    } else /* if (v == type_char_pointer) */ {
+      return llvm::Type::getInt8PtrTy(*context);
+      ;
+    }
+  }
+
+  void visit(ASTNodeProgram* n) { visit_children(n); }
+  void visit(ASTNodeFuncDef* n) {
+    std::vector<llvm::Type*> params;
+    if (n->parameters) {
+      for (auto t : n->parameters->param_types) {
+        params.push_back(llvmtype(t));
+      }
+    }
+    llvm::FunctionType* ft =
+        llvm::FunctionType::get(llvmtype(n->returntype), params, false);
+    llvm::Function* func = llvm::Function::Create(
+        ft, llvm::Function::ExternalLinkage, n->name, mod);
+    if (n->parameters) {
+      int i = 0;
+      for (auto& arg : func->args()) {
+        arg.setName(n->parameters->param_names[i++]);
+      }
+    }
+
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
+    builder->SetInsertPoint(bb);
+    visit_children(n);
+  }
+
+  void visit(ASTNodeDecl* n) {
+    std::string varname =
+        ((ASTNodeIdentifier*)(n->children[0]->children[0]))->value;
+    if (current_scope == global && global->declared(varname)) {
+      llvm::GlobalVariable* var;
+      mod->getOrInsertGlobal(varname, llvmtype(global->get(varname)));
+      var = mod->getNamedGlobal(varname);
+      /* 
+      n->children[0]->children[0]->value
+      decl->  assign   ->   id      ->const
+      */
+      llvm::Constant* initValue = nullptr;
+      if (global->get(varname) == type_int) {
+        initValue = llvm::ConstantInt::get(
+            *context,
+            llvm::APInt(
+                32,
+                ((ASTNodeInt*)(n->children[0]->children[0]->children[0]))
+                    ->value,
+                true));
+      }
+
+      var->setInitializer(initValue);
     }
   }
 
   void visit(ASTNodeIdentifier* n) {
-    if (current->exists(n->value)) {
-      return;
+    llvm::GlobalVariable* var = mod->getNamedGlobal(n->value);
+    if (var) {
+      builder->CreateLoad(var);
+      
     }
-    /* undeclared error */
-    throw std::runtime_error("id \"" + n->value + "\" not declared");
   }
 };
 

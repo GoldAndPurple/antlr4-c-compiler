@@ -7,6 +7,14 @@ set_compile_options(${lib_name})
 
 target_include_directories(${lib_name} PUBLIC .)
 
+# LLVM libs setup
+
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
+llvm_map_components_to_libnames(llvm_libs core support irreader)
+
 target_sources(
   ${lib_name}
   PUBLIC
@@ -22,6 +30,7 @@ target_link_libraries(
   PRIVATE
     DlangLexer
     DlangParser
+    ${llvm_libs}
     fmt
 )
 
