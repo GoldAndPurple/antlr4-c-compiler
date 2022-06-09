@@ -578,7 +578,7 @@ class ASTVisitorCodegen : public ASTVisitor {
       llvm::GlobalVariable* var;
       mod->getOrInsertGlobal(varname, llvmtype(global->get(varname)));
       var = mod->getNamedGlobal(varname);
-      /* 
+      /*
       n->children[0]->children[0]->value
       decl->  assign   ->   id      ->const
       */
@@ -601,7 +601,6 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::GlobalVariable* var = mod->getNamedGlobal(n->value);
     if (var) {
       builder->CreateLoad(var);
-      
     }
   }
 };

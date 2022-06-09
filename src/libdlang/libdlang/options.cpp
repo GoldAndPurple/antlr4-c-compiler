@@ -25,9 +25,8 @@ void parse(std::istream& in) {
   parser.addErrorListener(&error_listener);
 
   // token dump
-  /* for (auto token = lexer.nextToken(); token->getType() != antlr4::Token::EOF;
-       token = lexer.nextToken()) {
-    std::cout << fmt::format(
+  /* for (auto token = lexer.nextToken(); token->getType() !=
+  antlr4::Token::EOF; token = lexer.nextToken()) { std::cout << fmt::format(
         "<{row}:{col}>\t{token_class}\t{lexeme}\n",
         fmt::arg("row", token->getLine()),
         fmt::arg("col", token->getCharPositionInLine()),
@@ -48,24 +47,24 @@ void parse(std::istream& in) {
     return;
   }
 
-  //symtab creation
+  // symtab creation
   ASTVisitorScope scope_maker;
   scope_maker.visit(result);
-  if (!scope_maker.errors.empty()){
+  if (!scope_maker.errors.empty()) {
     for (auto& e : error_listener.errors) {
       std::cerr << e << '\n';
     }
     return;
   }
 
-  //ast printout
+  // ast printout
   ASTVisitorPrint ast_printer;
   ast_printer.visit(result);
   std::cout << ast_printer.treeprint.str();
 
   std::cout << '\n' << '\n' << '\n';
 
-  //codegen
+  // codegen
   ASTVisitorCodegen generator(&(scope_maker.global));
   generator.visit(result);
   generator.mod->print(llvm::outs(), nullptr);

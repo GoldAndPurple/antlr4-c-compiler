@@ -44,15 +44,15 @@ int main(int argc, char** argv) {
       std::cerr << "Unable to read stream\n";
       return 1;
     }
-    
+
     dlang::parse(input_stream);
-/* 
-    if (result.count(dump_tokens_opt) > 0) {
-      dlang::dump_tokens(input_stream, std::cout);
-    }
-    if (result.count(dump_ast_opt) > 0) {
-      dlang::dump_ast(input_stream, std::cout);
-    } */
+    /*
+        if (result.count(dump_tokens_opt) > 0) {
+          dlang::dump_tokens(input_stream, std::cout);
+        }
+        if (result.count(dump_ast_opt) > 0) {
+          dlang::dump_ast(input_stream, std::cout);
+        } */
 
   } catch (const cxxopts::OptionException& e) {
     std::cerr << e.what() << "\n";
