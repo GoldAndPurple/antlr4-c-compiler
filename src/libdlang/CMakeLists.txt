@@ -20,6 +20,7 @@ target_sources(
   PUBLIC
     libdlang/ast.hpp
     libdlang/options.hpp
+    libdlang/codegen.hpp
   PRIVATE
     libdlang/ast.cpp
     libdlang/options.cpp

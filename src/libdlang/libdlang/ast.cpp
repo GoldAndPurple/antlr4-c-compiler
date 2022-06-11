@@ -1,4 +1,4 @@
-#include "ast.hpp"
+#include <libdlang/ast.hpp>
 
 namespace dlang {
 
@@ -37,8 +37,8 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeParameterList*>(obj);
     } else if (obj.type() == typeid(ASTNodeFuncDef*)) {
       return std::any_cast<ASTNodeFuncDef*>(obj);
-    } else if (obj.type() == typeid(ASTNodeExpr*)) {
-      return std::any_cast<ASTNodeExpr*>(obj);
+    } else if (obj.type() == typeid(ASTNodeBinary*)) {
+      return std::any_cast<ASTNodeBinary*>(obj);
     } else if (obj.type() == typeid(ASTNodeFuncCall*)) {
       return std::any_cast<ASTNodeFuncCall*>(obj);
     } else if (obj.type() == typeid(ASTNodeReturn*)) {
@@ -51,6 +51,8 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeString*>(obj);
     } else if (obj.type() == typeid(ASTNodeIdentifier*)) {
       return std::any_cast<ASTNodeIdentifier*>(obj);
+    } else if (obj.type() == typeid(ASTNodeExpr*)) {
+      return std::any_cast<ASTNodeExpr*>(obj);
     } else if (obj.type() == typeid(ASTNodeDecl*)) {
       return std::any_cast<ASTNodeDecl*>(obj);
     } else if (obj.type() == typeid(ASTNodeAssign*)) {
@@ -116,7 +118,7 @@ std::any DlangCustomVisitor::visitMulDivExpr(
   } else {
     e = '%';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1, e));
+  ASTNodeBinary* node = new ASTNodeBinary(expr, std::string(1, e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -129,7 +131,7 @@ std::any DlangCustomVisitor::visitAddsubExpr(
   } else {
     e = '-';
   }
-  ASTNodeExpr* node = new ASTNodeExpr(expr, std::string(1, e));
+  ASTNodeBinary* node = new ASTNodeBinary(expr, std::string(1, e));
   node->addChild(astcast(visit(ctx->expression()[0])));
   node->addChild(astcast(visit(ctx->expression()[1])));
   return node;
@@ -248,17 +250,16 @@ std::any DlangCustomVisitor::visitDeclaration(
 std::any DlangCustomVisitor::visitAssignmentExpression(
     DlangParser::AssignmentExpressionContext* ctx) {
   ASTNodeAssign* n = new ASTNodeAssign();
-  ASTNodeIdentifier* i =
-      new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
-  n->addChild(i);
+  n->id = new ASTNodeIdentifier(value_id,ctx->Identifier()->getText());
   ASTNode* e = (ASTNode*)astcast(visit(ctx->expression()));
-  i->addChild(e);
+  n->addChild(e);
   return n;
 }
 
 std::any DlangCustomVisitor::visitBasicConditionalExpr(
     DlangParser::BasicConditionalExprContext* ctx) {
-  ASTNodeExpr* n = new ASTNodeExpr(expr, ctx->conditionalOperator()->getText());
+  ASTNodeBinary* n =
+      new ASTNodeBinary(expr, ctx->conditionalOperator()->getText());
   n->addChild(astcast(visit(ctx->expression()[0])));
   n->addChild(astcast(visit(ctx->expression()[1])));
   return n;
@@ -267,7 +268,7 @@ std::any DlangCustomVisitor::visitBasicConditionalExpr(
 std::any DlangCustomVisitor::visitIfStatement(
     DlangParser::IfStatementContext* ctx) {
   ASTNodeConditional* n = new ASTNodeConditional();
-  n->condition = (ASTNodeExpr*)astcast(visit(ctx->conditionalExpression()));
+  n->condition = (ASTNodeBinary*)astcast(visit(ctx->conditionalExpression()));
   n->addChild(astcast(visit(ctx->statement())));
   return n;
 }
@@ -282,7 +283,7 @@ void ASTNodeProgram::accept(ASTVisitor* v) {
 void ASTNodeDecl::accept(ASTVisitor* v) {
   v->visit(this);
 }
-void ASTNodeExpr::accept(ASTVisitor* v) {
+void ASTNodeBinary::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeInt::accept(ASTVisitor* v) {
@@ -316,6 +317,9 @@ void ASTNodeAssign::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeConditional::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeExpr::accept(ASTVisitor* v) {
   v->visit(this);
 }
 

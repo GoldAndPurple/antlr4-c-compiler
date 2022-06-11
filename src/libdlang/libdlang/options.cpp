@@ -1,5 +1,6 @@
 #include <libdlang/ast.hpp>
 #include <libdlang/options.hpp>
+#include <libdlang/codegen.hpp>
 
 #include <DlangLexer.h>
 #include <DlangParser.h>
@@ -67,7 +68,7 @@ void parse(std::istream& in) {
   // codegen
   ASTVisitorCodegen generator(&(scope_maker.global));
   generator.visit(result);
-  generator.mod->print(llvm::outs(), nullptr);
+  generator.modul->print(llvm::outs(), nullptr);
 }
 
 void dump_tokens(std::istream& in, std::ostream& out) {

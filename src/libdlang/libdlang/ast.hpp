@@ -2,7 +2,6 @@
 
 #include <DlangLexer.h>
 
-#include <llvm/IR/IRBuilder.h>
 #include "DlangParserBaseVisitor.h"
 
 namespace dlang {
@@ -107,13 +106,6 @@ class ASTNodeDecl : public ASTNode {
 
   void accept(ASTVisitor* v) override;
 };
-class ASTNodeAssign : public ASTNode {
- public:
-  // children are ids, whose children are expressions/funcreturns
-  ASTNodeAssign(size_t t = assignment) : ASTNode(t){};
-
-  void accept(ASTVisitor* v) override;
-};
 class ASTNodeIdList : public ASTNode {
  public:
   // children axe expressions passed to function
@@ -145,9 +137,15 @@ class ASTNodeFuncDef : public ASTNode {
 
 class ASTNodeExpr : public ASTNode {
  public:
+  ASTNodeExpr(size_t t = expr) : ASTNode(t){};
+  virtual void accept(ASTVisitor* v) override;
+};
+
+class ASTNodeBinary : public ASTNodeExpr {
+ public:
   std::string exprtype;
 
-  ASTNodeExpr(size_t t, const std::string v) : ASTNode(t), exprtype(v){};
+  ASTNodeBinary(size_t t, const std::string v) : ASTNodeExpr(t), exprtype(v){};
 
   void accept(ASTVisitor* v) override;
 };
@@ -162,35 +160,43 @@ class ASTNodeConditional : public ASTNode {
   void accept(ASTVisitor* v) override;
 };
 
-class ASTNodeInt : public ASTNode {
+class ASTNodeInt : public ASTNodeExpr {
  public:
   int value;
 
-  ASTNodeInt(size_t t, int v) : ASTNode(t), value(v){};
+  ASTNodeInt(size_t t, int v) : ASTNodeExpr(t), value(v){};
 
   void accept(ASTVisitor* v) override;
 };
-class ASTNodeFloat : public ASTNode {
+class ASTNodeFloat : public ASTNodeExpr {
  public:
   float value;
 
-  ASTNodeFloat(size_t t, float v) : ASTNode(t), value(v){};
+  ASTNodeFloat(size_t t, float v) : ASTNodeExpr(t), value(v){};
 
   void accept(ASTVisitor* v) override;
 };
-class ASTNodeString : public ASTNode {
+class ASTNodeString : public ASTNodeExpr {
  public:
   std::string value;
 
-  ASTNodeString(size_t t, std::string v) : ASTNode(t), value(v){};
+  ASTNodeString(size_t t, std::string v) : ASTNodeExpr(t), value(v){};
 
   void accept(ASTVisitor* v) override;
 };
-class ASTNodeIdentifier : public ASTNode {
+class ASTNodeIdentifier : public ASTNodeExpr {
  public:
   std::string value;
 
-  ASTNodeIdentifier(size_t t, std::string v) : ASTNode(t), value(v){};
+  ASTNodeIdentifier(size_t t, std::string v) : ASTNodeExpr(t), value(v){};
+
+  void accept(ASTVisitor* v) override;
+};
+class ASTNodeAssign : public ASTNode {
+ public:
+  ASTNodeIdentifier* id;
+  // children are expressions to be assigned
+  ASTNodeAssign(size_t t = assignment) : ASTNode(t){};
 
   void accept(ASTVisitor* v) override;
 };
@@ -216,7 +222,8 @@ class ASTVisitor {
  public:
   virtual void visit(ASTNodeProgram* n) { visit_children(n); }
   virtual void visit(ASTNodeBlock* n) { visit_children(n); }
-  virtual void visit(ASTNodeExpr* n) { visit_children(n); }
+  // virtual void visit(ASTNodeExpr* n) { visit_children(n); }
+  virtual void visit(ASTNodeBinary* n) { visit_children(n); }
   virtual void visit(ASTNodeInt* n) { visit_children(n); }
   virtual void visit(ASTNodeFloat* n) { visit_children(n); }
   virtual void visit(ASTNodeString* n) { visit_children(n); }
@@ -253,7 +260,7 @@ class ASTVisitor {
       visit((ASTNodeReturn*)c);
 
     } else if (c->getToken() == expr) {
-      visit((ASTNodeExpr*)c);
+      visit((ASTNodeBinary*)c);
 
     } else if (c->getToken() == value_int) {
       visit((ASTNodeInt*)c);
@@ -306,15 +313,15 @@ class ASTVisitorPrint : public ASTVisitor {
     // no if else management
     print_indent();
     treeprint << "if ";
-    visit(n->condition);
+    ASTVisitor::visit(n->condition);
     treeprint << " then\n";
     visit_children(n);
   }
-  void visit(ASTNodeExpr* n) {
+  void visit(ASTNodeBinary* n) {
     treeprint << '(';
-    ASTVisitor::visit((ASTNode*)n->children[0]);
+    ASTVisitor::visit(n->children[0]);
     treeprint << ' ' << n->exprtype << ' ';
-    ASTVisitor::visit((ASTNode*)n->children[1]);
+    ASTVisitor::visit(n->children[1]);
     treeprint << ')';
   }
   void visit(ASTNodeDecl* n) {
@@ -327,7 +334,7 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeAssign* n) {
     for (auto c : n->children) {
       print_indent();
-      treeprint << "(" << ((ASTNodeIdentifier*)c)->value << " = ";
+      treeprint << "(" << n->id->value << " = ";
       visit_children(c);
       treeprint << " ";
     }
@@ -361,11 +368,13 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeIdList* n) { visit_children(n); }
 
   void visit(ASTNodeParameterList* n) {
-    for (auto i : n->param_types) {
+    treeprint << '(';
+    for (size_t i = 0; i < n->param_types.size(); i++) {
       print_indent();
       treeprint << getType(n->param_types[i]) << ' ' << n->param_names[i]
                 << ' ';
     }
+    treeprint << ')';
   }
 
   void print_indent() {
@@ -427,7 +436,7 @@ class Scope {
     symtab[id] = type;
     return 0;
   }
-  int get(std::string id) {
+  int get(const std::string id) {
     Scope* tmp = this;
     while (tmp != nullptr) {
       if (tmp->declared(id)) {
@@ -436,6 +445,14 @@ class Scope {
       tmp = tmp->parent;
     }
     return -1;
+  }
+  Scope* get_scope(const std::string n) {
+    for (auto* c : this->children) {
+      if (c->name == n) {
+        return c;
+      }
+    }
+    return nullptr;
   }
 };
 
@@ -487,7 +504,7 @@ class ASTVisitorScope : public ASTVisitor {
       if (c->getToken() == value_id) {
         tmp = (ASTNodeIdentifier*)c;
       } else /* if (c->getToken() == assignment) */ {
-        tmp = (ASTNodeIdentifier*)c->children[0];
+        tmp = ((ASTNodeAssign*)c)->id;
       }
       if (current->add(tmp->value, n->type) == -1) {
         errors.push_back("id \"" + tmp->value + "\" redeclared");
@@ -496,111 +513,13 @@ class ASTVisitorScope : public ASTVisitor {
   }
   /*
   type-checking for expressions
-    void visit(ASTNodeExpr* n){
+    void visit(ASTNodeBinary* n){
 
     } */
 
   void visit(ASTNodeIdentifier* n) {
     if (!current->exists(n->value)) {
       errors.push_back("id \"" + n->value + "\" not declared");
-    }
-  }
-};
-
-class ASTVisitorCodegen : public ASTVisitor {
- public:
-  llvm::LLVMContext* context;
-  llvm::IRBuilder<>* builder;
-  llvm::Module* mod;
-  // std::map<std::string, llvm::Value*> values;
-  Scope* global;
-  Scope* current_scope;
-
-  ASTVisitorCodegen(Scope* g) : global(g) {
-    context = new llvm::LLVMContext();
-    mod = new llvm::Module("d-compiler", *context);
-    builder = new llvm::IRBuilder<>(*context);
-    current_scope = global;
-  };
-
-  llvm::Type* llvmtype(int v) {
-    if (v == type_void) {
-      return llvm::Type::getVoidTy(*context);
-    } else if (v == type_int) {
-      return llvm::Type::getInt32Ty(*context);
-    } else if (v == type_float) {
-      return llvm::Type::getFloatTy(*context);
-    } else if (v == type_char) {
-      return llvm::Type::getInt8Ty(*context);
-      ;
-    } else if (v == type_void_pointer) {
-      return llvm::Type::getInt8Ty(*context);
-      ;
-    } else if (v == type_int_pointer) {
-      return llvm::Type::getInt32PtrTy(*context);
-    } else if (v == type_float_pointer) {
-      return llvm::Type::getFloatPtrTy(*context);
-      ;
-    } else /* if (v == type_char_pointer) */ {
-      return llvm::Type::getInt8PtrTy(*context);
-      ;
-    }
-  }
-
-  void visit(ASTNodeProgram* n) { visit_children(n); }
-  void visit(ASTNodeFuncDef* n) {
-    std::vector<llvm::Type*> params;
-    if (n->parameters) {
-      for (auto t : n->parameters->param_types) {
-        params.push_back(llvmtype(t));
-      }
-    }
-    llvm::FunctionType* ft =
-        llvm::FunctionType::get(llvmtype(n->returntype), params, false);
-    llvm::Function* func = llvm::Function::Create(
-        ft, llvm::Function::ExternalLinkage, n->name, mod);
-    if (n->parameters) {
-      int i = 0;
-      for (auto& arg : func->args()) {
-        arg.setName(n->parameters->param_names[i++]);
-      }
-    }
-
-    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
-    builder->SetInsertPoint(bb);
-    visit_children(n);
-  }
-
-  void visit(ASTNodeDecl* n) {
-    std::string varname =
-        ((ASTNodeIdentifier*)(n->children[0]->children[0]))->value;
-    if (current_scope == global && global->declared(varname)) {
-      llvm::GlobalVariable* var;
-      mod->getOrInsertGlobal(varname, llvmtype(global->get(varname)));
-      var = mod->getNamedGlobal(varname);
-      /*
-      n->children[0]->children[0]->value
-      decl->  assign   ->   id      ->const
-      */
-      llvm::Constant* initValue = nullptr;
-      if (global->get(varname) == type_int) {
-        initValue = llvm::ConstantInt::get(
-            *context,
-            llvm::APInt(
-                32,
-                ((ASTNodeInt*)(n->children[0]->children[0]->children[0]))
-                    ->value,
-                true));
-      }
-
-      var->setInitializer(initValue);
-    }
-  }
-
-  void visit(ASTNodeIdentifier* n) {
-    llvm::GlobalVariable* var = mod->getNamedGlobal(n->value);
-    if (var) {
-      builder->CreateLoad(var);
     }
   }
 };
