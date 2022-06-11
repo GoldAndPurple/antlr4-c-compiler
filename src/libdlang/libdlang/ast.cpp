@@ -194,7 +194,8 @@ std::any DlangCustomVisitor::visitFunctionCall(
     DlangParser::FunctionCallContext* ctx) {
   ASTNodeFuncCall* n = new ASTNodeFuncCall(funccall);
   n->name = ctx->Identifier()->getText();
-  n->addChild(astcast(visit(ctx->identifierList())));
+  if (ctx->identifierList()){
+  n->addChild(astcast(visit(ctx->identifierList())));}
   return n;
 }
 

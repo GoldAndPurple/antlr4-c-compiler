@@ -58,7 +58,15 @@ class ASTVisitorCodegen : public ASTVisitor {
     throw std::logic_error("internal error during expression generation");
   }
 
-  void visit(ASTNodeProgram* n) { visit_children(n); }
+  void visit(ASTNodeProgram* n) {
+    std::vector<llvm::Type*> params = {llvm::Type::getInt8PtrTy(*context)};
+    llvm::FunctionType* signature =
+        llvm::FunctionType::get(llvm::Type::getInt32Ty(*context), params, true);
+    llvm::Function::Create(
+        signature, llvm::Function::ExternalLinkage, "printf", modul);
+
+    visit_children(n);
+  }
   void visit(ASTNodeFuncDef* n) {
     current_scope = global->get_scope(n->name);
 
@@ -80,12 +88,13 @@ class ASTVisitorCodegen : public ASTVisitor {
     if (n->parameters) {
       int i = 0;
       for (auto& arg : func->args()) {
-        arg.setName(n->parameters->param_names[i]);
-        current_vars[n->parameters->param_names[i]] = &arg;
-        if (!arg.getType()->isPointerTy()) {
-          auto var = builder->CreateAlloca(arg.getType(), nullptr);
-          builder->CreateStore(&arg, var);
-        }
+        auto pname = n->parameters->param_names[i];
+        arg.setName(pname);
+
+        auto var =
+            builder->CreateAlloca(arg.getType(), nullptr, pname + "_ptr");
+        builder->CreateStore(&arg, var);
+        current_vars[pname] = var;
       }
       i++;
     }
@@ -96,13 +105,13 @@ class ASTVisitorCodegen : public ASTVisitor {
   }
 
   void visit(ASTNodeFuncCall* n) {
-    llvm::Function *call = modul->getFunction(n->name);
+    llvm::Function* call = modul->getFunction(n->name);
     std::vector<llvm::Value*> params;
-    for (auto param : n->children){
+    for (auto param : n->children) {
       llvm::Value* p = visit((ASTNodeExpr*)(param));
       params.push_back(p);
     }
-    builder->CreateCall(call,params);
+    builder->CreateCall(call, params);
   }
 
   void visit(ASTNodeDecl* n) {
@@ -120,15 +129,16 @@ class ASTVisitorCodegen : public ASTVisitor {
           var = modul->getNamedGlobal(varname);
           llvm::Constant* initValue = nullptr;
           if (global->get(varname) == type_int) {
-            initValue = llvm::dyn_cast<llvm::Constant>(visit((ASTNodeExpr*)(c->children[0])));
-            /* initValue = llvm::ConstantInt::get(
-                *context,
-                llvm::APInt(
-                    32,
-                    exprresult,
-                    true)); */
+            initValue = llvm::dyn_cast<llvm::Constant>(
+                visit((ASTNodeExpr*)(c->children[0])));
           }
           var->setInitializer(initValue);
+        } else {
+          /* in function */
+          auto variable = builder->CreateAlloca(
+              llvmtype(current_scope->get(varname)), nullptr, varname);
+          current_vars[varname] = variable;
+          visit((ASTNodeAssign*)c);
         }
       } else /* if token == id */ {
         std::string varname = ((ASTNodeIdentifier*)c)->value;
@@ -142,11 +152,11 @@ class ASTVisitorCodegen : public ASTVisitor {
   void visit(ASTNodeAssign* n) {
     auto var = current_vars[n->id->value];
     llvm::Value* result = visit((ASTNodeExpr*)(n->children[0]));
-    builder->CreateStore(result,var);
+    builder->CreateStore(result, var);
   }
 
-  void visit(ASTNodeReturn* n){
-    if (!n->children.empty()){
+  void visit(ASTNodeReturn* n) {
+    if (!n->children.empty()) {
       llvm::Value* ret_expr = visit((ASTNodeExpr*)(n->children[0]));
       builder->CreateRet(ret_expr);
     } else {
@@ -177,12 +187,12 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Value* v;
     if (global->declared(n->value)) {
       llvm::GlobalVariable* global_var = modul->getNamedGlobal(n->value);
-      v = builder->CreateLoad(global_var, n->value);
+      v = builder->CreateLoad(global_var);
     } else { /*
        llvm::AllocaInst* local_var = context->GetVariable(n->value);
        v = builder->CreateLoad(local_var, n->value);
         */
-      v = current_vars[n->value];
+      v = builder->CreateLoad(current_vars[n->value]);
     }
     vstack.push_back(v);
   }
@@ -196,22 +206,7 @@ class ASTVisitorCodegen : public ASTVisitor {
         llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), n->value));
   }
   void visit(ASTNodeString* n) {
-    const std::string str = n->value;
-    llvm::Type* i8 = llvm::Type::getInt8Ty(*context);
-    llvm::Constant* constantString =
-        llvm::ConstantDataArray::getString(*context, str, true);
-    llvm::ArrayType* arrayType = llvm::ArrayType::get(i8, str.length() + 1);
-
-    llvm::AllocaInst* allocaInst = builder->CreateAlloca(
-        arrayType,
-        llvm::ConstantInt::get(
-            llvm::Type::getInt32Ty(*context), uint64_t(str.length() + 1)));
-    llvm::StoreInst* storeInst =
-        builder->CreateStore(constantString, allocaInst);
-    (void)storeInst;
-
-    vstack.push_back(
-        builder->CreateBitCast(allocaInst, llvm::Type::getInt8PtrTy(*context)));
+    vstack.push_back(builder->CreateGlobalStringPtr((n->value + '\0'),"str"));
   }
 };
 
