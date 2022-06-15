@@ -9,6 +9,7 @@
 const char* const file_path_opt = "file_path";
 const char* const dump_tokens_opt = "dump-tokens";
 const char* const dump_ast_opt = "dump-ast";
+const char* const dump_asm_opt = "dump-asm";
 
 int main(int argc, char** argv) {
   cxxopts::Options options("dlang-parser", "ANTLR4 dlang parser example");
@@ -21,6 +22,7 @@ int main(int argc, char** argv) {
         (file_path_opt, "", cxxopts::value<std::string>())
         (dump_tokens_opt, "")
         (dump_ast_opt, "")
+        (dump_asm_opt, "")
         ("h,help", "Print help");
     // clang-format on
   } catch (const cxxopts::OptionSpecException& e) {
@@ -45,14 +47,11 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    dlang::parse(input_stream);
-    /*
-        if (result.count(dump_tokens_opt) > 0) {
-          dlang::dump_tokens(input_stream, std::cout);
-        }
-        if (result.count(dump_ast_opt) > 0) {
-          dlang::dump_ast(input_stream, std::cout);
-        } */
+    dlang::parse(
+        input_stream,
+        result.count(dump_tokens_opt),
+        result.count(dump_ast_opt),
+        result.count(dump_asm_opt));
 
   } catch (const cxxopts::OptionException& e) {
     std::cerr << e.what() << "\n";

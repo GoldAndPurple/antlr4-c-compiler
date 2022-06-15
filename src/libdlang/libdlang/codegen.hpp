@@ -206,7 +206,7 @@ class ASTVisitorCodegen : public ASTVisitor {
         llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), n->value));
   }
   void visit(ASTNodeString* n) {
-    vstack.push_back(builder->CreateGlobalStringPtr((n->value + '\0'),"str"));
+    vstack.push_back(builder->CreateGlobalStringPtr((n->value), "str"));
   }
 };
 
