@@ -80,6 +80,10 @@ void parse(
     ASTVisitorCodegen generator(&(scope_maker.global));
     generator.visit(result);
     generator.modul->print(llvm::outs(), nullptr);
+
+    std::error_code err;
+    llvm::raw_fd_ostream* out_file = new llvm::raw_fd_ostream("intermediate.ll", err);
+    generator.modul->print(*out_file, nullptr);
   }
 }
 

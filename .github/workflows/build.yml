@@ -16,6 +16,9 @@ jobs:
         uses: KyleMayes/install-llvm-action@v1.5.3
         with:
           version: "10.0"
+      
+      - name: Get latest ninja
+        uses: urkle/action-get-ninja@v1
 
       - name: Build application
         run: ./build.sh
