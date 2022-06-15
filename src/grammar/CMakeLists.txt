@@ -41,15 +41,16 @@ target_link_libraries(
     Threads::Threads
 )
 
-
 antlr_target(
   ${antlr_parser_target_name}
   ${parser_lib_name}.g4
+  DEPENDS_ANTLR ${antlr_lexer_target_name}
   PARSER
   VISITOR
   PACKAGE "dlang"
   COMPILE_FLAGS -lib "${ANTLR_${antlr_lexer_target_name}_OUTPUT_DIR}"
 )
+
 target_set_cxx_standart(${parser_lib_name})
 target_sources(
   ${parser_lib_name}
