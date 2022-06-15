@@ -43,45 +43,44 @@ void parse(
     std::cout << '\n' << '\n' << '\n';
   }
   lexer.reset();
-}
 
-// ast creation
-DlangCustomVisitor visitor;
-ASTNodeProgram* result =
-    std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
+  // ast creation
+  DlangCustomVisitor visitor;
+  ASTNodeProgram* result =
+      std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
 
-if (!error_listener.errors.empty()) {
-  for (auto& e : error_listener.errors) {
-    std::cerr << e << '\n';
+  if (!error_listener.errors.empty()) {
+    for (auto& e : error_listener.errors) {
+      std::cerr << e << '\n';
+    }
+    return;
   }
-  return;
-}
 
-// symtab creation
-ASTVisitorScope scope_maker;
-scope_maker.visit(result);
-if (!scope_maker.errors.empty()) {
-  for (auto& e : error_listener.errors) {
-    std::cerr << e << '\n';
+  // symtab creation
+  ASTVisitorScope scope_maker;
+  scope_maker.visit(result);
+  if (!scope_maker.errors.empty()) {
+    for (auto& e : error_listener.errors) {
+      std::cerr << e << '\n';
+    }
+    return;
   }
-  return;
-}
 
-// ast printout
-if (ast_opt > 0) {
-  ASTVisitorPrint ast_printer;
-  ast_printer.visit(result);
-  std::cout << ast_printer.treeprint.str();
+  // ast printout
+  if (ast_opt > 0) {
+    ASTVisitorPrint ast_printer;
+    ast_printer.visit(result);
+    std::cout << ast_printer.treeprint.str();
 
-  std::cout << '\n' << '\n' << '\n';
-}
+    std::cout << '\n' << '\n' << '\n';
+  }
 
-// codegen
-if (asm_opt > 0) {
-  ASTVisitorCodegen generator(&(scope_maker.global));
-  generator.visit(result);
-  generator.modul->print(llvm::outs(), nullptr);
-}
+  // codegen
+  if (asm_opt > 0) {
+    ASTVisitorCodegen generator(&(scope_maker.global));
+    generator.visit(result);
+    generator.modul->print(llvm::outs(), nullptr);
+  }
 }
 
 }  // namespace dlang
