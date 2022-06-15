@@ -7,3 +7,4 @@ curl -O https://www.antlr.org/download/$antlr
 cmake --preset debug
 cmake --build --preset debug
 build/debug/bin/dlangparser --dump-tokens --dump-ast --dump-asm example.d
+ln -s build/debug/bin/dlangparser parser
