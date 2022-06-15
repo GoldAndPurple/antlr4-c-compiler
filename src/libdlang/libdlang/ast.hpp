@@ -332,13 +332,10 @@ class ASTVisitorPrint : public ASTVisitor {
     treeprint << ")\n";
   }
   void visit(ASTNodeAssign* n) {
-    for (auto c : n->children) {
-      print_indent();
-      treeprint << "(" << n->id->value << " = ";
-      visit_children(c);
-      treeprint << " ";
-    }
-    treeprint << ")\n";
+    print_indent();
+    treeprint << "(" << n->id->value << " = ";
+    visit_children(n);
+    treeprint << " )\n";
   }
   void visit(ASTNodeReturn* n) {
     print_indent();
