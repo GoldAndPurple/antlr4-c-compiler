@@ -50,6 +50,7 @@ void parse(
       std::any_cast<ASTNodeProgram*>(visitor.visitGlobal(parser.global()));
 
   if (!error_listener.errors.empty()) {
+    std::cerr << "Parsing error:\n";
     for (auto& e : error_listener.errors) {
       std::cerr << e << '\n';
     }
@@ -60,7 +61,8 @@ void parse(
   ASTVisitorScope scope_maker;
   scope_maker.visit(result);
   if (!scope_maker.errors.empty()) {
-    for (auto& e : error_listener.errors) {
+    std::cerr << "Semantic error:\n";
+    for (auto& e : scope_maker.errors) {
       std::cerr << e << '\n';
     }
     return;
