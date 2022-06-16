@@ -277,10 +277,39 @@ std::any DlangCustomVisitor::visitBasicConditionalExpr(
   return n;
 }
 
+std::any DlangCustomVisitor::visitIfElseStatement(DlangParser::IfElseStatementContext* ctx){
+  ASTNodeConditional* first = (ASTNodeConditional*)astcast(visitIfStatement(ctx->ifStatement()));
+  ASTNodeConditional* last = first;
+  for (auto& elif : ctx->elseIfStatement()){
+    ASTNodeConditional* e = (ASTNodeConditional*)astcast(visitElseIfStatement(elif));
+    last->elseif = e;
+    last = e;
+  }
+  if (ctx->elseStatement()){
+    last->elseif = (ASTNodeConditional*)astcast(visitElseStatement(ctx->elseStatement()));
+  }
+  return first;
+}
+
 std::any DlangCustomVisitor::visitIfStatement(
     DlangParser::IfStatementContext* ctx) {
   ASTNodeConditional* n = new ASTNodeConditional();
   n->condition = (ASTNodeBinary*)astcast(visit(ctx->conditionalExpression()));
+  n->addChild(astcast(visit(ctx->statement())));
+  return n;
+}
+
+std::any DlangCustomVisitor::visitElseIfStatement(
+    DlangParser::ElseIfStatementContext* ctx) {
+  ASTNodeConditional* n = new ASTNodeConditional();
+  n->condition = (ASTNodeBinary*)astcast(visit(ctx->conditionalExpression()));
+  n->addChild(astcast(visit(ctx->statement())));
+  return n;
+}
+
+std::any DlangCustomVisitor::visitElseStatement(
+    DlangParser::ElseStatementContext* ctx) {
+  ASTNodeConditional* n = new ASTNodeConditional();
   n->addChild(astcast(visit(ctx->statement())));
   return n;
 }

@@ -67,8 +67,8 @@ class ASTVisitorCodegen : public ASTVisitor {
         signature, llvm::Function::ExternalLinkage, "printf", modul);
     /* declare scanf */
     std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
-    llvm::FunctionType* signature_2 =
-        llvm::FunctionType::get(llvm::Type::getInt32Ty(*context), params_2, true);
+    llvm::FunctionType* signature_2 = llvm::FunctionType::get(
+        llvm::Type::getInt32Ty(*context), params_2, true);
     llvm::Function::Create(
         signature_2, llvm::Function::ExternalLinkage, "scanf", modul);
 
@@ -171,6 +171,46 @@ class ASTVisitorCodegen : public ASTVisitor {
     }
   }
 
+  void visit(ASTNodeConditional* n) {
+    llvm::Value* cond = visit((ASTNodeExpr*)(n->condition));
+    llvm::Function* func = builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock* then_bb =
+        llvm::BasicBlock::Create(*context, "if_true", func);
+
+    /* can only support a single ELSE */
+    if ((n->elseif != nullptr) && (n->elseif->condition == nullptr)) {
+      llvm::BasicBlock* else_bb =
+          llvm::BasicBlock::Create(*context, "if_false", func);
+      builder->CreateCondBr(cond, then_bb, else_bb);
+    llvm::BasicBlock* cont_bb =
+        llvm::BasicBlock::Create(*context, "if_continue", func);
+
+      builder->SetInsertPoint(then_bb);
+      visit_children(n);
+      builder->CreateBr(cont_bb);
+
+      builder->SetInsertPoint(else_bb);
+      visit_children(n->elseif);
+      builder->CreateBr(cont_bb);
+
+      builder->SetInsertPoint(cont_bb);
+      return;
+
+    } else if ((n->elseif != nullptr) && (n->elseif->condition != nullptr)) {
+      throw std::logic_error("codegen for 'else if' blocks not supported");
+    }
+
+    llvm::BasicBlock* cont_bb =
+        llvm::BasicBlock::Create(*context, "if_continue", func);
+    builder->CreateCondBr(cond, then_bb, cont_bb);
+
+    builder->SetInsertPoint(then_bb);
+    visit_children(n);
+    builder->CreateBr(cont_bb);
+
+    builder->SetInsertPoint(cont_bb);
+  }
+
   void visit(ASTNodeBinary* n) {
     llvm::Value* left = visit((ASTNodeExpr*)(n->children[0]));
     llvm::Value* right = visit((ASTNodeExpr*)(n->children[1]));
@@ -179,6 +219,8 @@ class ASTVisitorCodegen : public ASTVisitor {
     if (left->getType()->isIntegerTy()) {
       if (n->exprtype == "==") {
         result = builder->CreateICmpEQ(left, right);
+      } else if (n->exprtype == "!=") {
+        result = builder->CreateICmpNE(left, right);
       } else if (n->exprtype == "<") {
         result = builder->CreateICmpSLT(left, right);
       } else if (n->exprtype == ">") {
@@ -192,7 +234,8 @@ class ASTVisitorCodegen : public ASTVisitor {
       } else if (n->exprtype == "-") {
         result = builder->CreateSub(left, right);
       } else {
-        throw std::runtime_error(n->exprtype+" operator is not supported in this expression");
+        throw std::runtime_error(
+            n->exprtype + " operator is not supported in this expression");
       }
       vstack.push_back(result);
     }

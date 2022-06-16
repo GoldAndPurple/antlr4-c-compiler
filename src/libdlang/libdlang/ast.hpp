@@ -58,6 +58,9 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitBasicConditionalExpr(
       DlangParser::BasicConditionalExprContext* ctx);
   std::any visitIfStatement(DlangParser::IfStatementContext* ctx);
+  std::any visitElseIfStatement(DlangParser::ElseIfStatementContext* ctx);
+  std::any visitElseStatement(DlangParser::ElseStatementContext* ctx);
+  std::any visitIfElseStatement(DlangParser::IfElseStatementContext* ctx);
 
   /*
   JumpStatement
@@ -152,8 +155,8 @@ class ASTNodeBinary : public ASTNodeExpr {
 
 class ASTNodeConditional : public ASTNode {
  public:
-  ASTNodeExpr* condition;
-  ASTNodeConditional* elseif;
+  ASTNodeExpr* condition = nullptr;
+  ASTNodeConditional* elseif = nullptr;
   // linked list of cond expressions
   ASTNodeConditional(size_t t = cond) : ASTNode(t){};
 
@@ -310,12 +313,21 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeString* n) { treeprint << n->value; }
   void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
   void visit(ASTNodeConditional* n) {
-    // no if else management
     print_indent();
     treeprint << "if ";
     ASTVisitor::visit(n->condition);
-    treeprint << " then\n";
+    treeprint << "\n";
     visit_children(n);
+    auto next_node = n->elseif;
+    while (next_node != nullptr) {
+      treeprint << "elif ";
+      if (next_node->condition != nullptr) {
+        ASTVisitor::visit(next_node->condition);
+      }
+      treeprint << "\n";
+      visit_children(next_node);
+      next_node = next_node->elseif;
+    }
   }
   void visit(ASTNodeBinary* n) {
     treeprint << '(';
@@ -493,6 +505,23 @@ class ASTVisitorScope : public ASTVisitor {
     current = s;
     visit_children(n);
     current = s->parent;
+  }
+
+  void visit(ASTNodeConditional* n) {
+    Scope* parent = current;
+    Scope* s = new Scope(parent);
+    parent->nest_scope(s);
+    current = s;
+    visit_children(n);
+    auto next_node = n->elseif;
+    while (next_node != nullptr) {
+      s = new Scope(parent);
+      parent->nest_scope(s);
+      current = s;
+      visit_children(next_node);
+      next_node = next_node->elseif;
+    }
+    current = parent;
   }
 
   void visit(ASTNodeDecl* n) {
