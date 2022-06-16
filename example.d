@@ -9,7 +9,7 @@ int junk(int passed_along){
 int main()
 {
     int local = in_global*(1 + 5);
-    junk(local);
-    printf("Hello, world!");
+    int result = junk(local);
+    printf("Hello, %d!",result);
     return 0;
 }

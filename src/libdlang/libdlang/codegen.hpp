@@ -59,11 +59,18 @@ class ASTVisitorCodegen : public ASTVisitor {
   }
 
   void visit(ASTNodeProgram* n) {
+    /* declare printf */
     std::vector<llvm::Type*> params = {llvm::Type::getInt8PtrTy(*context)};
     llvm::FunctionType* signature =
         llvm::FunctionType::get(llvm::Type::getInt32Ty(*context), params, true);
     llvm::Function::Create(
         signature, llvm::Function::ExternalLinkage, "printf", modul);
+    /* declare scanf */
+    std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
+    llvm::FunctionType* signature_2 =
+        llvm::FunctionType::get(llvm::Type::getInt32Ty(*context), params_2, true);
+    llvm::Function::Create(
+        signature_2, llvm::Function::ExternalLinkage, "scanf", modul);
 
     visit_children(n);
   }
@@ -107,11 +114,11 @@ class ASTVisitorCodegen : public ASTVisitor {
   void visit(ASTNodeFuncCall* n) {
     llvm::Function* call = modul->getFunction(n->name);
     std::vector<llvm::Value*> params;
-    for (auto param : n->children) {
+    for (auto param : n->children[0]->children) {
       llvm::Value* p = visit((ASTNodeExpr*)(param));
       params.push_back(p);
     }
-    builder->CreateCall(call, params);
+    vstack.push_back(builder->CreateCall(call, params));
   }
 
   void visit(ASTNodeDecl* n) {
@@ -174,10 +181,18 @@ class ASTVisitorCodegen : public ASTVisitor {
         result = builder->CreateICmpEQ(left, right);
       } else if (n->exprtype == "<") {
         result = builder->CreateICmpSLT(left, right);
+      } else if (n->exprtype == ">") {
+        result = builder->CreateICmpSGT(left, right);
       } else if (n->exprtype == "*") {
         result = builder->CreateMul(left, right);
+      } else if (n->exprtype == "/") {
+        result = builder->CreateSDiv(left, right);
       } else if (n->exprtype == "+") {
         result = builder->CreateAdd(left, right);
+      } else if (n->exprtype == "-") {
+        result = builder->CreateSub(left, right);
+      } else {
+        throw std::runtime_error(n->exprtype+" operator is not supported in this expression");
       }
       vstack.push_back(result);
     }

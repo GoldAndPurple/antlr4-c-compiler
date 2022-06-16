@@ -201,11 +201,11 @@ class ASTNodeAssign : public ASTNode {
   void accept(ASTVisitor* v) override;
 };
 
-class ASTNodeFuncCall : public ASTNode {
+class ASTNodeFuncCall : public ASTNodeExpr {
  public:
   std::string name;
   // children are expression-parameters
-  ASTNodeFuncCall(size_t t = funccall) : ASTNode(t){};
+  ASTNodeFuncCall(size_t t = funccall) : ASTNodeExpr(t){};
 
   void accept(ASTVisitor* v) override;
 };

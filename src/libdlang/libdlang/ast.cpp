@@ -194,8 +194,9 @@ std::any DlangCustomVisitor::visitFunctionCall(
     DlangParser::FunctionCallContext* ctx) {
   ASTNodeFuncCall* n = new ASTNodeFuncCall(funccall);
   n->name = ctx->Identifier()->getText();
-  if (ctx->identifierList()){
-  n->addChild(astcast(visit(ctx->identifierList())));}
+  if (ctx->identifierList()) {
+    n->addChild(astcast(visit(ctx->identifierList())));
+  }
   return n;
 }
 
@@ -251,9 +252,19 @@ std::any DlangCustomVisitor::visitDeclaration(
 std::any DlangCustomVisitor::visitAssignmentExpression(
     DlangParser::AssignmentExpressionContext* ctx) {
   ASTNodeAssign* n = new ASTNodeAssign();
-  n->id = new ASTNodeIdentifier(value_id,ctx->Identifier()->getText());
-  ASTNode* e = (ASTNode*)astcast(visit(ctx->expression()));
-  n->addChild(e);
+  n->id = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
+  if (ctx->expression()) {
+    ASTNode* e = (ASTNode*)astcast(visit(ctx->expression()));
+    n->addChild(e);
+  } else /* func_return */ {
+    auto ret = ctx->functionReturn();
+    ASTNodeFuncCall* c = new ASTNodeFuncCall(funccall);
+    c->name = ret->Identifier()->getText();
+    if (ret->identifierList()) {
+      c->addChild(astcast(visit(ret->identifierList())));
+    }
+    n->addChild(c);
+  }
   return n;
 }
 
