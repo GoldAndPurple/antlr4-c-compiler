@@ -140,15 +140,16 @@ class ASTNodeFuncDef : public ASTNode {
 
 class ASTNodeExpr : public ASTNode {
  public:
+  int exprtype = 0;
   ASTNodeExpr(size_t t = expr) : ASTNode(t){};
   virtual void accept(ASTVisitor* v) override;
 };
 
 class ASTNodeBinary : public ASTNodeExpr {
  public:
-  std::string exprtype;
+  std::string op;
 
-  ASTNodeBinary(size_t t, const std::string v) : ASTNodeExpr(t), exprtype(v){};
+  ASTNodeBinary(size_t t, const std::string v) : ASTNodeExpr(t), op(v){};
 
   void accept(ASTVisitor* v) override;
 };
@@ -281,7 +282,7 @@ class ASTVisitor {
     } else if (c->getToken() == assignment) {
       visit((ASTNodeAssign*)c);
     } else {
-      // invalid token
+      throw std::logic_error("error during ast creation");
     }
   }
 
@@ -332,7 +333,7 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeBinary* n) {
     treeprint << '(';
     ASTVisitor::visit(n->children[0]);
-    treeprint << ' ' << n->exprtype << ' ';
+    treeprint << ' ' << n->op << ' ';
     ASTVisitor::visit(n->children[1]);
     treeprint << ')';
   }
@@ -449,7 +450,7 @@ class Scope {
     Scope* tmp = this;
     while (tmp != nullptr) {
       if (tmp->declared(id)) {
-        return symtab[id];
+        return tmp->symtab[id];
       }
       tmp = tmp->parent;
     }
@@ -468,6 +469,7 @@ class Scope {
 class ASTVisitorScope : public ASTVisitor {
  public:
   std::vector<std::string> errors;
+  std::map<std::string, ASTNodeFuncDef*> funcsigns;
   Scope global = Scope(nullptr);
   Scope* current = &global;
 
@@ -494,6 +496,7 @@ class ASTVisitorScope : public ASTVisitor {
         s->add(names[i], types[i]);
       }
     }
+    funcsigns[n->name] = n;
 
     visit_children(n);
     current = s->parent;
@@ -536,18 +539,58 @@ class ASTVisitorScope : public ASTVisitor {
         errors.push_back("id \"" + tmp->value + "\" redeclared");
       }
     }
+    visit_children(n);
   }
-  /*
-  type-checking for expressions
-    void visit(ASTNodeBinary* n){
 
-    } */
+  void visit(ASTNodeAssign* n) {
+    visit_children(n);
+    int var_type = current->get(n->id->value);
+    int assign_type = ((ASTNodeExpr*)(n->children[0]))->exprtype;
+    if (var_type != assign_type) {
+      errors.push_back(
+          "assigning type " + getType(assign_type) + " to variable of type " +
+          getType(var_type) + " is not supported");
+    }
+  }
+
+  void visit(ASTNodeBinary* n) {
+    visit_children(n);
+    int l_type = ((ASTNodeExpr*)(n->children[0]))->exprtype;
+    int r_type = ((ASTNodeExpr*)(n->children[1]))->exprtype;
+    if (l_type != r_type) {
+      errors.push_back(
+          "operation between types " + getType(l_type) + " and " +
+          getType(r_type) + " not supported");
+    }
+    n->exprtype = r_type;
+  }
 
   void visit(ASTNodeIdentifier* n) {
     if (!current->exists(n->value)) {
       errors.push_back("id \"" + n->value + "\" not declared");
     }
+    n->exprtype = current->get(n->value);
   }
+  void visit(ASTNodeFuncCall* n) {
+    visit_children(n);
+    if (n->name == "printf"){
+      n->exprtype = type_int;
+      return;
+    }
+    auto types = funcsigns[n->name]->parameters->param_types;
+    if (types.size() != n->children.size()){
+      errors.push_back("incorrect number of arguments when calling function " + n->name);
+    }
+    for (size_t i = 0; i < types.size(); i++) {
+      if ((((ASTNodeExpr*)n->children[0]->children[i])->exprtype) != types[i]) {
+        errors.push_back("incorrect signature when calling function" + n->name);
+      }
+    }
+    n->exprtype = funcsigns[n->name]->returntype;
+  }
+  void visit(ASTNodeInt* n) { n->exprtype = type_int; }
+  void visit(ASTNodeFloat* n) { n->exprtype = type_float; }
+  void visit(ASTNodeString* n) { n->exprtype = type_char_pointer; }
 };
 
 }  // namespace dlang

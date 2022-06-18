@@ -66,11 +66,11 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Function::Create(
         signature, llvm::Function::ExternalLinkage, "printf", modul);
     /* declare scanf */
-    std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
+    /* std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
     llvm::FunctionType* signature_2 = llvm::FunctionType::get(
         llvm::Type::getInt32Ty(*context), params_2, true);
     llvm::Function::Create(
-        signature_2, llvm::Function::ExternalLinkage, "scanf", modul);
+        signature_2, llvm::Function::ExternalLinkage, "scanf", modul); */
 
     visit_children(n);
   }
@@ -217,25 +217,25 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Value* result;
 
     if (left->getType()->isIntegerTy()) {
-      if (n->exprtype == "==") {
+      if (n->op == "==") {
         result = builder->CreateICmpEQ(left, right);
-      } else if (n->exprtype == "!=") {
+      } else if (n->op == "!=") {
         result = builder->CreateICmpNE(left, right);
-      } else if (n->exprtype == "<") {
+      } else if (n->op == "<") {
         result = builder->CreateICmpSLT(left, right);
-      } else if (n->exprtype == ">") {
+      } else if (n->op == ">") {
         result = builder->CreateICmpSGT(left, right);
-      } else if (n->exprtype == "*") {
+      } else if (n->op == "*") {
         result = builder->CreateMul(left, right);
-      } else if (n->exprtype == "/") {
+      } else if (n->op == "/") {
         result = builder->CreateSDiv(left, right);
-      } else if (n->exprtype == "+") {
+      } else if (n->op == "+") {
         result = builder->CreateAdd(left, right);
-      } else if (n->exprtype == "-") {
+      } else if (n->op == "-") {
         result = builder->CreateSub(left, right);
       } else {
         throw std::runtime_error(
-            n->exprtype + " operator is not supported in this expression");
+            n->op + " operator is not supported in this expression");
       }
       vstack.push_back(result);
     }

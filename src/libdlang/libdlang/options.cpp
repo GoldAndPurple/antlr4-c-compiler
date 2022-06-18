@@ -78,15 +78,16 @@ void parse(
   }
 
   // codegen
-    ASTVisitorCodegen generator(&(scope_maker.global));
-    generator.visit(result);
+  ASTVisitorCodegen generator(&(scope_maker.global));
+  generator.visit(result);
   if (asm_opt > 0) {
     generator.modul->print(llvm::outs(), nullptr);
   }
 
-    std::error_code err;
-    llvm::raw_fd_ostream* out_file = new llvm::raw_fd_ostream("intermediate.ll", err);
-    generator.modul->print(*out_file, nullptr);
+  std::error_code err;
+  llvm::raw_fd_ostream* out_file =
+      new llvm::raw_fd_ostream("intermediate.ll", err);
+  generator.modul->print(*out_file, nullptr);
 }
 
 }  // namespace dlang
