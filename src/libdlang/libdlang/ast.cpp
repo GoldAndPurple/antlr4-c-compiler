@@ -59,6 +59,8 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeAssign*>(obj);
     } else if (obj.type() == typeid(ASTNodeConditional*)) {
       return std::any_cast<ASTNodeConditional*>(obj);
+    } else if (obj.type() == typeid(ASTNodeLoop*)) {
+      return std::any_cast<ASTNodeLoop*>(obj);
     }
   }
   return nullptr;
@@ -314,6 +316,13 @@ std::any DlangCustomVisitor::visitElseStatement(
   return n;
 }
 
+std::any DlangCustomVisitor::visitIterationStatement(DlangParser::IterationStatementContext* ctx){
+  ASTNodeLoop* n = new ASTNodeLoop;
+  n->condition = (ASTNodeExpr*)astcast(visit(ctx->conditionalExpression()));
+  n->addChild(astcast(visit(ctx->statement())));
+  return n;
+}
+
 // ASTvisitor accepts
 void ASTNodeBlock::accept(ASTVisitor* v) {
   v->visit(this);
@@ -361,6 +370,9 @@ void ASTNodeConditional::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeExpr::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeLoop::accept(ASTVisitor* v) {
   v->visit(this);
 }
 

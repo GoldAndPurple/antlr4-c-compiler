@@ -19,6 +19,7 @@ enum {
   jump,
   expr,
   cond,
+  loop,
   value_id,
   value_string,
   value_int,
@@ -61,6 +62,7 @@ class DlangCustomVisitor : public DlangParserBaseVisitor {
   std::any visitElseIfStatement(DlangParser::ElseIfStatementContext* ctx);
   std::any visitElseStatement(DlangParser::ElseStatementContext* ctx);
   std::any visitIfElseStatement(DlangParser::IfElseStatementContext* ctx);
+  std::any visitIterationStatement(DlangParser::IterationStatementContext* ctx);
 
   /*
   JumpStatement
@@ -164,6 +166,14 @@ class ASTNodeConditional : public ASTNode {
   void accept(ASTVisitor* v) override;
 };
 
+class ASTNodeLoop : public ASTNode {
+ public:
+  ASTNodeExpr* condition = nullptr;
+ 
+  ASTNodeLoop(size_t t = loop) : ASTNode(t){};
+  virtual void accept(ASTVisitor* v) override;
+};
+
 class ASTNodeInt : public ASTNodeExpr {
  public:
   int value;
@@ -240,6 +250,7 @@ class ASTVisitor {
   virtual void visit(ASTNodeIdList* n) { visit_children(n); }
   virtual void visit(ASTNodeParameterList* n) { visit_children(n); }
   virtual void visit(ASTNodeConditional* n) { visit_children(n); }
+  virtual void visit(ASTNodeLoop* n) { visit_children(n); }
 
   virtual void visit(ASTNode* c) {
     if (c->getToken() == idlist) {
@@ -281,6 +292,8 @@ class ASTVisitor {
       visit((ASTNodeDecl*)c);
     } else if (c->getToken() == assignment) {
       visit((ASTNodeAssign*)c);
+    } else if (c->getToken() == loop) {
+      visit((ASTNodeLoop*)c);
     } else {
       throw std::logic_error("error during ast creation");
     }
@@ -330,6 +343,14 @@ class ASTVisitorPrint : public ASTVisitor {
       next_node = next_node->elseif;
     }
   }
+  void visit(ASTNodeLoop* n){
+    print_indent();
+    treeprint << "while ";
+    ASTVisitor::visit(n->condition);
+    treeprint << "\n";
+    visit_children(n);
+  }
+
   void visit(ASTNodeBinary* n) {
     treeprint << '(';
     ASTVisitor::visit(n->children[0]);
@@ -515,6 +536,7 @@ class ASTVisitorScope : public ASTVisitor {
     Scope* s = new Scope(parent);
     parent->nest_scope(s);
     current = s;
+    ASTVisitor::visit(n->condition);
     visit_children(n);
     auto next_node = n->elseif;
     while (next_node != nullptr) {
@@ -525,6 +547,15 @@ class ASTVisitorScope : public ASTVisitor {
       next_node = next_node->elseif;
     }
     current = parent;
+  }
+
+  void visit(ASTNodeLoop* n) {
+    Scope* s = new Scope(current);
+    current->nest_scope(s);
+    current = s;
+    ASTVisitor::visit(n->condition);
+    visit_children(n);
+    current = s->parent;
   }
 
   void visit(ASTNodeDecl* n) {

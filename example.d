@@ -10,10 +10,10 @@ int main()
 {
     int local = in_global*(1 + 5);
     int result = junk(local);
-    if (result > 0){
+    result = result - 49;
+    while (result < 0){
         printf("Hello, %d!",result);
-    } else {
-        printf("You're too small, %d!",result);
+        result = result + 1;
     }
     return 0;
 }

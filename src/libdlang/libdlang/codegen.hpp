@@ -48,7 +48,7 @@ class ASTVisitorCodegen : public ASTVisitor {
     }
   }
 
-  llvm::Value* visit(ASTNodeExpr* n) {
+  llvm::Value* visit_value(ASTNodeExpr* n) {
     n->accept(this);
     if (!vstack.empty()) {
       llvm::Value* value = vstack.back();
@@ -115,7 +115,7 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Function* call = modul->getFunction(n->name);
     std::vector<llvm::Value*> params;
     for (auto param : n->children[0]->children) {
-      llvm::Value* p = visit((ASTNodeExpr*)(param));
+      llvm::Value* p = visit_value((ASTNodeExpr*)(param));
       params.push_back(p);
     }
     vstack.push_back(builder->CreateCall(call, params));
@@ -137,7 +137,7 @@ class ASTVisitorCodegen : public ASTVisitor {
           llvm::Constant* initValue = nullptr;
           if (global->get(varname) == type_int) {
             initValue = llvm::dyn_cast<llvm::Constant>(
-                visit((ASTNodeExpr*)(c->children[0])));
+                visit_value((ASTNodeExpr*)(c->children[0])));
           }
           var->setInitializer(initValue);
         } else {
@@ -158,13 +158,13 @@ class ASTVisitorCodegen : public ASTVisitor {
 
   void visit(ASTNodeAssign* n) {
     auto var = current_vars[n->id->value];
-    llvm::Value* result = visit((ASTNodeExpr*)(n->children[0]));
+    llvm::Value* result = visit_value((ASTNodeExpr*)(n->children[0]));
     builder->CreateStore(result, var);
   }
 
   void visit(ASTNodeReturn* n) {
     if (!n->children.empty()) {
-      llvm::Value* ret_expr = visit((ASTNodeExpr*)(n->children[0]));
+      llvm::Value* ret_expr = visit_value((ASTNodeExpr*)(n->children[0]));
       builder->CreateRet(ret_expr);
     } else {
       builder->CreateRet(nullptr);
@@ -172,7 +172,7 @@ class ASTVisitorCodegen : public ASTVisitor {
   }
 
   void visit(ASTNodeConditional* n) {
-    llvm::Value* cond = visit((ASTNodeExpr*)(n->condition));
+    llvm::Value* cond = visit_value((ASTNodeExpr*)(n->condition));
     llvm::Function* func = builder->GetInsertBlock()->getParent();
     llvm::BasicBlock* then_bb =
         llvm::BasicBlock::Create(*context, "if_true", func);
@@ -211,9 +211,26 @@ class ASTVisitorCodegen : public ASTVisitor {
     builder->SetInsertPoint(cont_bb);
   }
 
+  void visit(ASTNodeLoop* n) {
+    llvm::Value* cond = visit_value((ASTNodeExpr*)(n->condition));
+    llvm::Function* func = builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock* body_bb =
+        llvm::BasicBlock::Create(*context, "while_body", func);
+    llvm::BasicBlock* after_bb =
+        llvm::BasicBlock::Create(*context, "while_continue", func);
+    builder->CreateCondBr(cond,body_bb,after_bb);
+    
+    builder->SetInsertPoint(body_bb);
+    visit_children(n);
+    cond = visit_value((ASTNodeExpr*)(n->condition));
+    builder->CreateCondBr(cond,body_bb,after_bb);
+
+    builder->SetInsertPoint(after_bb);
+  }
+
   void visit(ASTNodeBinary* n) {
-    llvm::Value* left = visit((ASTNodeExpr*)(n->children[0]));
-    llvm::Value* right = visit((ASTNodeExpr*)(n->children[1]));
+    llvm::Value* left = visit_value((ASTNodeExpr*)(n->children[0]));
+    llvm::Value* right = visit_value((ASTNodeExpr*)(n->children[1]));
     llvm::Value* result;
 
     if (left->getType()->isIntegerTy()) {
