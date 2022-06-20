@@ -95,13 +95,17 @@ std::any DlangCustomVisitor::visitPrimaryExpression(
   auto t = ctx->getStart()->getType();
   /* std::cout << ctx->getText() << '\n'; */
   if (t == DlangParser::Identifier) {
-    node = new ASTNodeIdentifier(value_id, ctx->getStart()->getText());
+    node = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
+  } else if (t == DlangParser::And) {
+    node = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
+    ((ASTNodeIdentifier*)node)->referenced = true;
   } else if (t == DlangParser::IntegerConstant) {
-    node = new ASTNodeInt(value_int, std::stoi(ctx->getStart()->getText()));
+    node = new ASTNodeInt(value_int, std::stoi(ctx->IntegerConstant()->getText()));
   } else if (t == DlangParser::FloatConstant) {
-    node = new ASTNodeFloat(value_float, std::stof(ctx->getStart()->getText()));
+    node = new ASTNodeFloat(value_float, std::stof(ctx->FloatConstant()->getText()));
   } else if (t == DlangParser::String) {
-    node = new ASTNodeString(value_string, ctx->getStart()->getText());
+    auto str = ctx->String()->getText();
+    node = new ASTNodeString(value_string, str.substr(1,str.size()-2));
   } else if (t == DlangParser::LeftParen) {
     node = astcast(visit(ctx->expression()));
   } else {
@@ -237,6 +241,9 @@ std::any DlangCustomVisitor::visitDeclaration(
   ASTNodeDecl* n = new ASTNodeDecl();
 
   // uninitialised identitifiers
+  if (!ctx->typeSpecifier()){
+    throw std::runtime_error("Type declaration error");
+  }
   n->type = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
   for (auto id : ctx->Identifier()) {
     ASTNodeIdentifier* i = new ASTNodeIdentifier(value_id, id->getText());

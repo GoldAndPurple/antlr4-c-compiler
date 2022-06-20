@@ -55,7 +55,7 @@ class ASTVisitorCodegen : public ASTVisitor {
       vstack.pop_back();
       return value;
     }
-    throw std::logic_error("internal error during expression generation");
+    throw std::runtime_error("internal error during expression generation");
   }
 
   void visit(ASTNodeProgram* n) {
@@ -66,11 +66,11 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Function::Create(
         signature, llvm::Function::ExternalLinkage, "printf", modul);
     /* declare scanf */
-    /* std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
+    std::vector<llvm::Type*> params_2 = {llvm::Type::getInt8PtrTy(*context)};
     llvm::FunctionType* signature_2 = llvm::FunctionType::get(
         llvm::Type::getInt32Ty(*context), params_2, true);
     llvm::Function::Create(
-        signature_2, llvm::Function::ExternalLinkage, "scanf", modul); */
+        signature_2, llvm::Function::ExternalLinkage, "scanf", modul);
 
     visit_children(n);
   }
@@ -138,6 +138,8 @@ class ASTVisitorCodegen : public ASTVisitor {
           if (global->get(varname) == type_int) {
             initValue = llvm::dyn_cast<llvm::Constant>(
                 visit_value((ASTNodeExpr*)(c->children[0])));
+          } else {
+            throw std::runtime_error("Type float not supported");
           }
           var->setInitializer(initValue);
         } else {
@@ -167,7 +169,7 @@ class ASTVisitorCodegen : public ASTVisitor {
       llvm::Value* ret_expr = visit_value((ASTNodeExpr*)(n->children[0]));
       builder->CreateRet(ret_expr);
     } else {
-      builder->CreateRet(nullptr);
+      builder->CreateRetVoid();
     }
   }
 
@@ -182,8 +184,8 @@ class ASTVisitorCodegen : public ASTVisitor {
       llvm::BasicBlock* else_bb =
           llvm::BasicBlock::Create(*context, "if_false", func);
       builder->CreateCondBr(cond, then_bb, else_bb);
-    llvm::BasicBlock* cont_bb =
-        llvm::BasicBlock::Create(*context, "if_continue", func);
+      llvm::BasicBlock* cont_bb =
+          llvm::BasicBlock::Create(*context, "if_continue", func);
 
       builder->SetInsertPoint(then_bb);
       visit_children(n);
@@ -197,7 +199,7 @@ class ASTVisitorCodegen : public ASTVisitor {
       return;
 
     } else if ((n->elseif != nullptr) && (n->elseif->condition != nullptr)) {
-      throw std::logic_error("codegen for 'else if' blocks not supported");
+      throw std::runtime_error("codegen for 'else if' blocks not supported");
     }
 
     llvm::BasicBlock* cont_bb =
@@ -218,12 +220,12 @@ class ASTVisitorCodegen : public ASTVisitor {
         llvm::BasicBlock::Create(*context, "while_body", func);
     llvm::BasicBlock* after_bb =
         llvm::BasicBlock::Create(*context, "while_continue", func);
-    builder->CreateCondBr(cond,body_bb,after_bb);
-    
+    builder->CreateCondBr(cond, body_bb, after_bb);
+
     builder->SetInsertPoint(body_bb);
     visit_children(n);
     cond = visit_value((ASTNodeExpr*)(n->condition));
-    builder->CreateCondBr(cond,body_bb,after_bb);
+    builder->CreateCondBr(cond, body_bb, after_bb);
 
     builder->SetInsertPoint(after_bb);
   }
@@ -263,11 +265,13 @@ class ASTVisitorCodegen : public ASTVisitor {
     if (global->declared(n->value)) {
       llvm::GlobalVariable* global_var = modul->getNamedGlobal(n->value);
       v = builder->CreateLoad(global_var);
-    } else { /*
-       llvm::AllocaInst* local_var = context->GetVariable(n->value);
-       v = builder->CreateLoad(local_var, n->value);
-        */
-      v = builder->CreateLoad(current_vars[n->value]);
+    } else {
+      if (n->referenced) {
+        v = builder->CreateIntToPtr(
+            current_vars[n->value], llvm::Type::getInt32PtrTy(*context));
+      } else {
+        v = builder->CreateLoad(current_vars[n->value]);
+      }
     }
     vstack.push_back(v);
   }
@@ -279,6 +283,7 @@ class ASTVisitorCodegen : public ASTVisitor {
   void visit(ASTNodeFloat* n) {
     vstack.push_back(
         llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), n->value));
+    throw std::runtime_error("Type float not supported");
   }
   void visit(ASTNodeString* n) {
     vstack.push_back(builder->CreateGlobalStringPtr((n->value), "str"));

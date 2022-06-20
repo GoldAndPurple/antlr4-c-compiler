@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     // clang-format on
   } catch (const cxxopts::OptionSpecException& e) {
     std::cerr << e.what() << "\n";
-    return 1;
+    return -1;
   }
 
   options.parse_positional({file_path_opt});
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
 
     if (!input_stream.good()) {
       std::cerr << "Unable to read stream\n";
-      return 1;
+      return -1;
     }
 
     dlang::parse(
@@ -55,6 +55,9 @@ int main(int argc, char** argv) {
 
   } catch (const cxxopts::OptionException& e) {
     std::cerr << e.what() << "\n";
-    return 1;
+    return -1;
+  } catch (const std::runtime_error& e) {
+    std::cerr << e.what() << "\n";
+    return -1;
   }
 }

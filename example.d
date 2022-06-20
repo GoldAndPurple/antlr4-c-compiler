@@ -11,9 +11,8 @@ int main()
     int local = in_global*(1 + 5);
     int result = junk(local);
     result = result - 49;
-    while (result < 0){
-        printf("Hello, %d!",result);
-        result = result + 1;
-    }
+    printf("Hello, number %d! Write a new number: ",result);
+    scanf("%d",&result);
+    printf("You've written '%d'",result);
     return 0;
 }

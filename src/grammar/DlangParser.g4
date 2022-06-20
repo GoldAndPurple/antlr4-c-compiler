@@ -66,12 +66,11 @@ identifierList
 expression
     :   expression opr=( Star | Div | Mod ) expression                                      # mulDivExpr
     |   expression opr=( Plus | Minus ) expression                                          # addsubExpr
-    |   expression opr=( LeftShift | RightShift | And | Or | Negate | Caret ) expression    # bitExpr
     |   primaryExpression                                                                   # primeExpr
     ;
 
 primaryExpression
-    :   Identifier
+    :   (And?) Identifier
     |   IntegerConstant
     |   FloatConstant
     |   String
@@ -80,9 +79,6 @@ primaryExpression
 
 conditionalExpression
     :   expression conditionalOperator expression                               # basicConditionalExpr
-    |   conditionalExpression ConditionalConnectOperator conditionalExpression  # connectedConditionalExpr
-    |   LeftParen conditionalExpression RightParen                              # parenthesizedConditionalExpr
-    |   Not LeftParen conditionalExpression RightParen                          # negatedConditionalExpr
     ;
 
 assignmentExpression
@@ -97,7 +93,6 @@ statement
     |   iterationStatement
     |   assignmentStatement
     |   jumpStatement
-    |   unaryStatement Semi
     ;
 
 compoundStatement
@@ -134,13 +129,6 @@ assignmentStatement
 
 jumpStatement
     :   Return expression? Semi
-    ;
-
-unaryStatement
-    :   PlusPlus   Identifier  # unaryIncrementStatement
-    |   MinusMinus Identifier  # unaryDecrementStatement
-    |   Identifier PlusPlus    # unaryIncrementStatement
-    |   Identifier MinusMinus  # unaryDecrementStatement
     ;
 
 conditionalOperator

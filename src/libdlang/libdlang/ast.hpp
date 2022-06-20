@@ -201,6 +201,7 @@ class ASTNodeString : public ASTNodeExpr {
 class ASTNodeIdentifier : public ASTNodeExpr {
  public:
   std::string value;
+  bool referenced = false;
 
   ASTNodeIdentifier(size_t t, std::string v) : ASTNodeExpr(t), value(v){};
 
@@ -295,7 +296,7 @@ class ASTVisitor {
     } else if (c->getToken() == loop) {
       visit((ASTNodeLoop*)c);
     } else {
-      throw std::logic_error("error during ast creation");
+      throw std::runtime_error("error during ast creation");
     }
   }
 
@@ -396,7 +397,6 @@ class ASTVisitorPrint : public ASTVisitor {
     print_indent();
     treeprint << ")\n";
   }
-  void visit(ASTNodeIdList* n) { visit_children(n); }
 
   void visit(ASTNodeParameterList* n) {
     treeprint << '(';
@@ -604,7 +604,7 @@ class ASTVisitorScope : public ASTVisitor {
   }
   void visit(ASTNodeFuncCall* n) {
     visit_children(n);
-    if (n->name == "printf"){
+    if ((n->name == "printf")||(n->name == "scanf")){
       n->exprtype = type_int;
       return;
     }
