@@ -6,4 +6,5 @@ cmake-build-release
 *.ll
 *.s
 *.o
+*.exe
 parser

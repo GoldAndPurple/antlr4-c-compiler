@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
     std::cerr << e.what() << "\n";
     return -1;
   } catch (const std::runtime_error& e) {
+    std::cerr << "Parsing error\n";
     std::cerr << e.what() << "\n";
     return -1;
   }

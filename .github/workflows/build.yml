@@ -19,3 +19,6 @@ jobs:
 
       - name: Build application
         run: ./build.sh
+
+      - name: Compile example
+        run: ./compile.sh example.d example.exe
