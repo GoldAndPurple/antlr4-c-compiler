@@ -126,13 +126,21 @@ class ASTVisitorCodegen : public ASTVisitor {
       if (c->getToken() == assignment) {
         /*
         n   ->    c [id] ->value
-        decl->  assign   ->expression
+        decl-> assign[id]->expression
         */
         std::string varname = (((ASTNodeAssign*)c)->id)->value;
         /* global var */
         if (current_scope == global && global->declared(varname)) {
           llvm::GlobalVariable* var;
-          modul->getOrInsertGlobal(varname, llvmtype(global->get(varname)));
+          llvm::Type* to_alloc = nullptr;
+          if (((ASTNodeAssign*)c)->id->array_idx > 0) {
+            to_alloc = llvm::ArrayType::get(
+                llvmtype(global->get(varname)),
+                ((ASTNodeAssign*)c)->id->array_idx);
+          } else {
+            to_alloc = llvmtype(global->get(varname));
+          }
+          modul->getOrInsertGlobal(varname, to_alloc);
           var = modul->getNamedGlobal(varname);
           llvm::Constant* initValue = nullptr;
           if (global->get(varname) == type_int) {
@@ -144,15 +152,30 @@ class ASTVisitorCodegen : public ASTVisitor {
           var->setInitializer(initValue);
         } else {
           /* in function */
-          auto variable = builder->CreateAlloca(
-              llvmtype(current_scope->get(varname)), nullptr, varname);
+          llvm::Type* to_alloc = nullptr;
+          if (((ASTNodeAssign*)c)->id->array_idx > 0) {
+            to_alloc = llvm::ArrayType::get(
+                llvmtype(current_scope->get(varname)),
+                ((ASTNodeAssign*)c)->id->array_idx);
+          } else {
+            to_alloc = llvmtype(current_scope->get(varname));
+          }
+          auto variable = builder->CreateAlloca(to_alloc, nullptr, varname);
           current_vars[varname] = variable;
           visit((ASTNodeAssign*)c);
         }
       } else /* if token == id */ {
         std::string varname = ((ASTNodeIdentifier*)c)->value;
-        auto variable = builder->CreateAlloca(
-            llvmtype(current_scope->get(varname)), nullptr, varname);
+        llvm::Type* to_alloc = nullptr;
+        if (((ASTNodeIdentifier*)c)->array_idx > 0) {
+          to_alloc = llvm::ArrayType::get(
+              llvmtype(current_scope->get(varname)),
+              ((ASTNodeIdentifier*)c)->array_idx);
+        } else {
+          to_alloc = llvmtype(current_scope->get(varname));
+        }
+        auto variable = builder->CreateAlloca(to_alloc, nullptr, varname);
+        current_vars[varname] = variable;
         current_vars[varname] = variable;
       }
     }
@@ -161,6 +184,14 @@ class ASTVisitorCodegen : public ASTVisitor {
   void visit(ASTNodeAssign* n) {
     auto var = current_vars[n->id->value];
     llvm::Value* result = visit_value((ASTNodeExpr*)(n->children[0]));
+    if (n->id->array_idx > -1) {
+      auto target_idx = llvm::ConstantInt::get(
+          llvm::Type::getInt64Ty(*context), n->id->array_idx);
+      auto zero_idx =
+          llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
+      var = builder->CreateGEP(
+          var, llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+    }
     builder->CreateStore(result, var);
   }
 
@@ -264,13 +295,33 @@ class ASTVisitorCodegen : public ASTVisitor {
     llvm::Value* v;
     if (global->declared(n->value)) {
       llvm::GlobalVariable* global_var = modul->getNamedGlobal(n->value);
-      v = builder->CreateLoad(global_var);
+      if (n->array_idx > -1) {
+        auto target_idx = llvm::ConstantInt::get(
+            llvm::Type::getInt64Ty(*context), n->array_idx);
+        auto zero_idx =
+            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
+        v = builder->CreateGEP(
+            global_var, llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+        v = builder->CreateLoad(v);
+      } else {
+        v = builder->CreateLoad(global_var);
+      }
     } else {
       if (n->referenced) {
         v = builder->CreateIntToPtr(
             current_vars[n->value], llvm::Type::getInt32PtrTy(*context));
       } else {
-        v = builder->CreateLoad(current_vars[n->value]);
+        if (n->array_idx > -1) {
+          auto target_idx = llvm::ConstantInt::get(
+              llvm::Type::getInt64Ty(*context), n->array_idx);
+          auto zero_idx =
+              llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
+          v = builder->CreateGEP(
+              current_vars[n->value], llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+          v = builder->CreateLoad(v);
+        } else {
+          v = builder->CreateLoad(current_vars[n->value]);
+        }
       }
     }
     vstack.push_back(v);

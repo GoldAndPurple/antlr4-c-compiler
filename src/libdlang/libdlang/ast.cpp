@@ -94,18 +94,24 @@ std::any DlangCustomVisitor::visitPrimaryExpression(
   ASTNode* node = nullptr;
   auto t = ctx->getStart()->getType();
   /* std::cout << ctx->getText() << '\n'; */
-  if (t == DlangParser::Identifier) {
+  if (ctx->Identifier()) {
     node = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
-  } else if (t == DlangParser::And) {
-    node = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
-    ((ASTNodeIdentifier*)node)->referenced = true;
+    if (t == DlangParser::And) {
+      ((ASTNodeIdentifier*)node)->referenced = true;
+    }
+    if (ctx->LeftBracket()) {
+      ((ASTNodeIdentifier*)node)->array_idx =
+          std::stoi(ctx->IntegerConstant()->getText());
+    }
   } else if (t == DlangParser::IntegerConstant) {
-    node = new ASTNodeInt(value_int, std::stoi(ctx->IntegerConstant()->getText()));
+    node =
+        new ASTNodeInt(value_int, std::stoi(ctx->IntegerConstant()->getText()));
   } else if (t == DlangParser::FloatConstant) {
-    node = new ASTNodeFloat(value_float, std::stof(ctx->FloatConstant()->getText()));
+    node = new ASTNodeFloat(
+        value_float, std::stof(ctx->FloatConstant()->getText()));
   } else if (t == DlangParser::String) {
     auto str = ctx->String()->getText();
-    node = new ASTNodeString(value_string, str.substr(1,str.size()-2));
+    node = new ASTNodeString(value_string, str.substr(1, str.size() - 2));
   } else if (t == DlangParser::LeftParen) {
     node = astcast(visit(ctx->expression()));
   } else {
@@ -241,12 +247,15 @@ std::any DlangCustomVisitor::visitDeclaration(
   ASTNodeDecl* n = new ASTNodeDecl();
 
   // uninitialised identitifiers
-  if (!ctx->typeSpecifier()){
+  if (!ctx->typeSpecifier()) {
     throw std::runtime_error("Type declaration error");
   }
   n->type = std::any_cast<int>(visitTypeSpecifier(ctx->typeSpecifier()));
   for (auto id : ctx->Identifier()) {
     ASTNodeIdentifier* i = new ASTNodeIdentifier(value_id, id->getText());
+    if (ctx->IntegerConstant()) {
+      i->array_idx = std::stoi(ctx->IntegerConstant()->getText());
+    }
     n->addChild(i);
   }
   // assign-expressions
@@ -262,6 +271,9 @@ std::any DlangCustomVisitor::visitAssignmentExpression(
     DlangParser::AssignmentExpressionContext* ctx) {
   ASTNodeAssign* n = new ASTNodeAssign();
   n->id = new ASTNodeIdentifier(value_id, ctx->Identifier()->getText());
+  if (ctx->IntegerConstant()) {
+    n->id->array_idx = std::stoi(ctx->IntegerConstant()->getText());
+  }
   if (ctx->expression()) {
     ASTNode* e = (ASTNode*)astcast(visit(ctx->expression()));
     n->addChild(e);
@@ -286,16 +298,20 @@ std::any DlangCustomVisitor::visitBasicConditionalExpr(
   return n;
 }
 
-std::any DlangCustomVisitor::visitIfElseStatement(DlangParser::IfElseStatementContext* ctx){
-  ASTNodeConditional* first = (ASTNodeConditional*)astcast(visitIfStatement(ctx->ifStatement()));
+std::any DlangCustomVisitor::visitIfElseStatement(
+    DlangParser::IfElseStatementContext* ctx) {
+  ASTNodeConditional* first =
+      (ASTNodeConditional*)astcast(visitIfStatement(ctx->ifStatement()));
   ASTNodeConditional* last = first;
-  for (auto& elif : ctx->elseIfStatement()){
-    ASTNodeConditional* e = (ASTNodeConditional*)astcast(visitElseIfStatement(elif));
+  for (auto& elif : ctx->elseIfStatement()) {
+    ASTNodeConditional* e =
+        (ASTNodeConditional*)astcast(visitElseIfStatement(elif));
     last->elseif = e;
     last = e;
   }
-  if (ctx->elseStatement()){
-    last->elseif = (ASTNodeConditional*)astcast(visitElseStatement(ctx->elseStatement()));
+  if (ctx->elseStatement()) {
+    last->elseif =
+        (ASTNodeConditional*)astcast(visitElseStatement(ctx->elseStatement()));
   }
   return first;
 }
@@ -323,7 +339,8 @@ std::any DlangCustomVisitor::visitElseStatement(
   return n;
 }
 
-std::any DlangCustomVisitor::visitIterationStatement(DlangParser::IterationStatementContext* ctx){
+std::any DlangCustomVisitor::visitIterationStatement(
+    DlangParser::IterationStatementContext* ctx) {
   ASTNodeLoop* n = new ASTNodeLoop;
   n->condition = (ASTNodeExpr*)astcast(visit(ctx->conditionalExpression()));
   n->addChild(astcast(visit(ctx->statement())));

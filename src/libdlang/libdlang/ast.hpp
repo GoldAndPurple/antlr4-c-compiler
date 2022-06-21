@@ -202,6 +202,7 @@ class ASTNodeIdentifier : public ASTNodeExpr {
  public:
   std::string value;
   bool referenced = false;
+  int array_idx = -1;
 
   ASTNodeIdentifier(size_t t, std::string v) : ASTNodeExpr(t), value(v){};
 
@@ -326,7 +327,15 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeInt* n) { treeprint << n->value; }
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
-  void visit(ASTNodeIdentifier* n) { treeprint << n->value; }
+  void visit(ASTNodeIdentifier* n) { 
+    if (n->referenced){
+    treeprint << '&'; 
+    }
+    treeprint << n->value;
+    if (n->array_idx > 0){
+    treeprint << '[' << n->array_idx << ']'; 
+    }
+    }
   void visit(ASTNodeConditional* n) {
     print_indent();
     treeprint << "if ";
@@ -368,7 +377,11 @@ class ASTVisitorPrint : public ASTVisitor {
   }
   void visit(ASTNodeAssign* n) {
     print_indent();
-    treeprint << "(" << n->id->value << " = ";
+    treeprint << "(" << n->id->value;
+    if (n->id->array_idx > 0){
+      treeprint << '[' << n->id->array_idx << ']'; 
+    }
+    treeprint << " = ";
     visit_children(n);
     treeprint << " )\n";
   }

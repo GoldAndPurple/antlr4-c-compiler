@@ -34,7 +34,7 @@ blockItem
     ;
 
 declaration
-:   typeSpecifier Identifier (Comma Identifier)* Semi
+:   typeSpecifier (LeftBracket IntegerConstant RightBracket)? Identifier  (Comma Identifier)* Semi
 |   typeSpecifier assignmentExpression (Comma assignmentExpression)* Semi
 ;
 
@@ -70,7 +70,7 @@ expression
     ;
 
 primaryExpression
-    :   (And?) Identifier
+    :   (And?) Identifier (LeftBracket IntegerConstant RightBracket)?
     |   IntegerConstant
     |   FloatConstant
     |   String
@@ -82,8 +82,8 @@ conditionalExpression
     ;
 
 assignmentExpression
-    :   Identifier Assign expression
-    |   Identifier Assign functionReturn
+    :   Identifier (LeftBracket IntegerConstant RightBracket)? Assign expression
+    |   Identifier (LeftBracket IntegerConstant RightBracket)? Assign functionReturn
     ;
 
 statement
