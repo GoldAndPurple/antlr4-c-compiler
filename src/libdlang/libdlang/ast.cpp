@@ -45,6 +45,8 @@ ASTNode* astcast(std::any obj) {
       return std::any_cast<ASTNodeReturn*>(obj);
     } else if (obj.type() == typeid(ASTNodeInt*)) {
       return std::any_cast<ASTNodeInt*>(obj);
+    } else if (obj.type() == typeid(ASTNodeChar*)) {
+      return std::any_cast<ASTNodeChar*>(obj);
     } else if (obj.type() == typeid(ASTNodeFloat*)) {
       return std::any_cast<ASTNodeFloat*>(obj);
     } else if (obj.type() == typeid(ASTNodeString*)) {
@@ -106,16 +108,26 @@ std::any DlangCustomVisitor::visitPrimaryExpression(
   } else if (t == DlangParser::IntegerConstant) {
     node =
         new ASTNodeInt(value_int, std::stoi(ctx->IntegerConstant()->getText()));
+  } else if (t == DlangParser::CharConstant) {
+    /* change escaped characters */
+    auto to_char = ctx->CharConstant()->getText();
+/*     size_t esc = 0;
+    while (to_char.find('\\',esc)){
+      to_char[1] = '\n';
+    } */
+    node =
+        new ASTNodeChar(value_char, to_char[1]);
   } else if (t == DlangParser::FloatConstant) {
     node = new ASTNodeFloat(
         value_float, std::stof(ctx->FloatConstant()->getText()));
   } else if (t == DlangParser::String) {
+    /* change escaped characters */
     auto str = ctx->String()->getText();
     node = new ASTNodeString(value_string, str.substr(1, str.size() - 2));
   } else if (t == DlangParser::LeftParen) {
     node = astcast(visit(ctx->expression()));
   } else {
-    // errors
+    throw std::runtime_error("Something went wrong during parsing");
   }
   return node;
 }
@@ -361,6 +373,9 @@ void ASTNodeBinary::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeInt::accept(ASTVisitor* v) {
+  v->visit(this);
+}
+void ASTNodeChar::accept(ASTVisitor* v) {
   v->visit(this);
 }
 void ASTNodeFloat::accept(ASTVisitor* v) {

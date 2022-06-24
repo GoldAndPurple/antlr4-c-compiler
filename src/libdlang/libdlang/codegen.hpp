@@ -33,18 +33,14 @@ class ASTVisitorCodegen : public ASTVisitor {
       return llvm::Type::getFloatTy(*context);
     } else if (v == type_char) {
       return llvm::Type::getInt8Ty(*context);
-      ;
     } else if (v == type_void_pointer) {
       return llvm::Type::getInt8Ty(*context);
-      ;
     } else if (v == type_int_pointer) {
       return llvm::Type::getInt32PtrTy(*context);
     } else if (v == type_float_pointer) {
       return llvm::Type::getFloatPtrTy(*context);
-      ;
     } else /* if (v == type_char_pointer) */ {
       return llvm::Type::getInt8PtrTy(*context);
-      ;
     }
   }
 
@@ -125,8 +121,7 @@ class ASTVisitorCodegen : public ASTVisitor {
     for (auto c : n->children) {
       if (c->getToken() == assignment) {
         /*
-        n   ->    c [id] ->value
-        decl-> assign[id]->expression
+        declaration + init assignment
         */
         std::string varname = (((ASTNodeAssign*)c)->id)->value;
         /* global var */
@@ -164,35 +159,59 @@ class ASTVisitorCodegen : public ASTVisitor {
           current_vars[varname] = variable;
           visit((ASTNodeAssign*)c);
         }
-      } else /* if token == id */ {
+      } else /* declaration only */ {
         std::string varname = ((ASTNodeIdentifier*)c)->value;
-        llvm::Type* to_alloc = nullptr;
-        if (((ASTNodeIdentifier*)c)->array_idx > 0) {
-          to_alloc = llvm::ArrayType::get(
-              llvmtype(current_scope->get(varname)),
-              ((ASTNodeIdentifier*)c)->array_idx);
+        if (current_scope == global && global->declared(varname)) {
+          llvm::Type* to_alloc = nullptr;
+          if (((ASTNodeIdentifier*)c)->array_idx > 0) {
+            to_alloc = llvm::ArrayType::get(
+                llvmtype(global->get(varname)),
+                ((ASTNodeIdentifier*)c)->array_idx);
+          } else {
+            to_alloc = llvmtype(global->get(varname));
+          }
+          modul->getOrInsertGlobal(varname, to_alloc);
+
         } else {
-          to_alloc = llvmtype(current_scope->get(varname));
+          llvm::Type* to_alloc = nullptr;
+          if (((ASTNodeIdentifier*)c)->array_idx > 0) {
+            to_alloc = llvm::ArrayType::get(
+                llvmtype(current_scope->get(varname)),
+                ((ASTNodeIdentifier*)c)->array_idx);
+          } else {
+            to_alloc = llvmtype(current_scope->get(varname));
+          }
+          auto variable = builder->CreateAlloca(to_alloc, nullptr, varname);
+          current_vars[varname] = variable;
         }
-        auto variable = builder->CreateAlloca(to_alloc, nullptr, varname);
-        current_vars[varname] = variable;
-        current_vars[varname] = variable;
       }
     }
   }
 
   void visit(ASTNodeAssign* n) {
-    auto var = current_vars[n->id->value];
-    llvm::Value* result = visit_value((ASTNodeExpr*)(n->children[0]));
-    if (n->id->array_idx > -1) {
-      auto target_idx = llvm::ConstantInt::get(
-          llvm::Type::getInt64Ty(*context), n->id->array_idx);
+    llvm::GlobalVariable* glob = modul->getNamedGlobal(n->id->value);
+    if (glob) {
+      llvm::Value* result = visit_value((ASTNodeExpr*)(n->children[0]));
+      builder->CreateStore(result, glob);
+    } else {
       auto zero_idx =
           llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
-      var = builder->CreateGEP(
-          var, llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+      auto var = current_vars[n->id->value];
+      llvm::Value* result = visit_value((ASTNodeExpr*)(n->children[0]));
+      /* if assigning string literal to char array */
+      /* auto tid = llvm::dyn_cast_or_null<llvm::PointerType>(var->getType());
+      if ((tid->getElementType()->isArrayTy()) &&
+          (result->getType() == llvm::Type::getInt8PtrTy(*context))) {
+        var = builder->CreateInBoundsGEP(
+            var, llvm::ArrayRef<llvm::Value*>{zero_idx, zero_idx});
+      } else  */if (n->id->array_idx > -1) {
+        auto target_idx = llvm::ConstantInt::get(
+            llvm::Type::getInt64Ty(*context), n->id->array_idx);
+        var = builder->CreateInBoundsGEP(
+            var, llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+      }
+      builder->CreateStore(result, var);
     }
-    builder->CreateStore(result, var);
   }
 
   void visit(ASTNodeReturn* n) {
@@ -300,7 +319,7 @@ class ASTVisitorCodegen : public ASTVisitor {
             llvm::Type::getInt64Ty(*context), n->array_idx);
         auto zero_idx =
             llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
-        v = builder->CreateGEP(
+        v = builder->CreateInBoundsGEP(
             global_var, llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
         v = builder->CreateLoad(v);
       } else {
@@ -308,16 +327,19 @@ class ASTVisitorCodegen : public ASTVisitor {
       }
     } else {
       if (n->referenced) {
-        v = builder->CreateIntToPtr(
-            current_vars[n->value], llvm::Type::getInt32PtrTy(*context));
+        auto var = current_vars[n->value];
+        v = builder->CreateIntToPtr(var, var->getType());
+        /* v = builder->CreateIntToPtr(
+            current_vars[n->value], llvm::Type::getInt32PtrTy(*context)); */
       } else {
         if (n->array_idx > -1) {
           auto target_idx = llvm::ConstantInt::get(
               llvm::Type::getInt64Ty(*context), n->array_idx);
           auto zero_idx =
               llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), 0);
-          v = builder->CreateGEP(
-              current_vars[n->value], llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
+          v = builder->CreateInBoundsGEP(
+              current_vars[n->value],
+              llvm::ArrayRef<llvm::Value*>{zero_idx, target_idx});
           v = builder->CreateLoad(v);
         } else {
           v = builder->CreateLoad(current_vars[n->value]);
@@ -330,6 +352,10 @@ class ASTVisitorCodegen : public ASTVisitor {
   void visit(ASTNodeInt* n) {
     vstack.push_back(
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), n->value));
+  }
+  void visit(ASTNodeChar* n) {
+    vstack.push_back(
+        llvm::ConstantInt::get(llvm::Type::getInt8Ty(*context), n->value));
   }
   void visit(ASTNodeFloat* n) {
     vstack.push_back(

@@ -73,6 +73,7 @@ primaryExpression
     :   (And?) Identifier (LeftBracket IntegerConstant RightBracket)?
     |   IntegerConstant
     |   FloatConstant
+    |   CharConstant
     |   String
     |   LeftParen expression RightParen
     ;

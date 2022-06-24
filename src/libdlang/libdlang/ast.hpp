@@ -23,6 +23,7 @@ enum {
   value_id,
   value_string,
   value_int,
+  value_char,
   value_float,
   type_void,
   type_int,
@@ -169,7 +170,7 @@ class ASTNodeConditional : public ASTNode {
 class ASTNodeLoop : public ASTNode {
  public:
   ASTNodeExpr* condition = nullptr;
- 
+
   ASTNodeLoop(size_t t = loop) : ASTNode(t){};
   virtual void accept(ASTVisitor* v) override;
 };
@@ -179,6 +180,15 @@ class ASTNodeInt : public ASTNodeExpr {
   int value;
 
   ASTNodeInt(size_t t, int v) : ASTNodeExpr(t), value(v){};
+
+  void accept(ASTVisitor* v) override;
+};
+
+class ASTNodeChar : public ASTNodeExpr {
+ public:
+  char value;
+
+  ASTNodeChar(size_t t, int v) : ASTNodeExpr(t), value(v){};
 
   void accept(ASTVisitor* v) override;
 };
@@ -241,6 +251,7 @@ class ASTVisitor {
   // virtual void visit(ASTNodeExpr* n) { visit_children(n); }
   virtual void visit(ASTNodeBinary* n) { visit_children(n); }
   virtual void visit(ASTNodeInt* n) { visit_children(n); }
+  virtual void visit(ASTNodeChar* n) { visit_children(n); }
   virtual void visit(ASTNodeFloat* n) { visit_children(n); }
   virtual void visit(ASTNodeString* n) { visit_children(n); }
   virtual void visit(ASTNodeIdentifier* n) { visit_children(n); }
@@ -278,6 +289,9 @@ class ASTVisitor {
 
     } else if (c->getToken() == expr) {
       visit((ASTNodeBinary*)c);
+
+    } else if (c->getToken() == value_char) {
+      visit((ASTNodeChar*)c);
 
     } else if (c->getToken() == value_int) {
       visit((ASTNodeInt*)c);
@@ -325,17 +339,18 @@ class ASTVisitorPrint : public ASTVisitor {
     treeprint << ')';
   }
   void visit(ASTNodeInt* n) { treeprint << n->value; }
+  void visit(ASTNodeChar* n) { treeprint << n->value; }
   void visit(ASTNodeFloat* n) { treeprint << n->value; }
   void visit(ASTNodeString* n) { treeprint << n->value; }
-  void visit(ASTNodeIdentifier* n) { 
-    if (n->referenced){
-    treeprint << '&'; 
+  void visit(ASTNodeIdentifier* n) {
+    if (n->referenced) {
+      treeprint << '&';
     }
     treeprint << n->value;
-    if (n->array_idx > 0){
-    treeprint << '[' << n->array_idx << ']'; 
+    if (n->array_idx > 0) {
+      treeprint << '[' << n->array_idx << ']';
     }
-    }
+  }
   void visit(ASTNodeConditional* n) {
     print_indent();
     treeprint << "if ";
@@ -353,7 +368,7 @@ class ASTVisitorPrint : public ASTVisitor {
       next_node = next_node->elseif;
     }
   }
-  void visit(ASTNodeLoop* n){
+  void visit(ASTNodeLoop* n) {
     print_indent();
     treeprint << "while ";
     ASTVisitor::visit(n->condition);
@@ -378,8 +393,8 @@ class ASTVisitorPrint : public ASTVisitor {
   void visit(ASTNodeAssign* n) {
     print_indent();
     treeprint << "(" << n->id->value;
-    if (n->id->array_idx > 0){
-      treeprint << '[' << n->id->array_idx << ']'; 
+    if (n->id->array_idx > 0) {
+      treeprint << '[' << n->id->array_idx << ']';
     }
     treeprint << " = ";
     visit_children(n);
@@ -617,13 +632,14 @@ class ASTVisitorScope : public ASTVisitor {
   }
   void visit(ASTNodeFuncCall* n) {
     visit_children(n);
-    if ((n->name == "printf")||(n->name == "scanf")){
+    if ((n->name == "printf") || (n->name == "scanf")) {
       n->exprtype = type_int;
       return;
     }
     auto types = funcsigns[n->name]->parameters->param_types;
-    if (types.size() != n->children.size()){
-      errors.push_back("incorrect number of arguments when calling function " + n->name);
+    if (types.size() != n->children.size()) {
+      errors.push_back(
+          "incorrect number of arguments when calling function " + n->name);
     }
     for (size_t i = 0; i < types.size(); i++) {
       if ((((ASTNodeExpr*)n->children[0]->children[i])->exprtype) != types[i]) {
@@ -633,6 +649,7 @@ class ASTVisitorScope : public ASTVisitor {
     n->exprtype = funcsigns[n->name]->returntype;
   }
   void visit(ASTNodeInt* n) { n->exprtype = type_int; }
+  void visit(ASTNodeChar* n) { n->exprtype = type_char; }
   void visit(ASTNodeFloat* n) { n->exprtype = type_float; }
   void visit(ASTNodeString* n) { n->exprtype = type_char_pointer; }
 };

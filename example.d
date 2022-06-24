@@ -8,12 +8,18 @@ int junk(int passed_along){
 
 int main()
 {
-    int[3] array;
-    array[1] = 1;
+    char[3] str;
+    str[0] = '~';
+    str[1] = '7';
+    str[2] = '\n';
+    
     int local = in_global*(1 + 5);
     int result = junk(local);
-    printf("Hello, number %d! Write a new number: ",array[1]);
+
+    printf("Hello, number %d! Write a new number: ", result);
     scanf("%d",&result);
-    printf("You've written '%d'",result);
+    printf("You've written '%d'\n",result);
+    printf("Also %s is in char array",&str[0]);
+
     return 0;
 }

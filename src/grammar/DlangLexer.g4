@@ -101,6 +101,12 @@ Constant
     |   FloatConstant
     ;
 
+fragment
+CharOrEscape
+    : '\\' .
+    | .
+    ;
+
 ConditionalConnectOperator
     :   OrOr
     |   AndAnd
@@ -148,10 +154,13 @@ Identifier
     ;
 
 DoubleQuote      : '"';
+SingleQuote : '\'';
 
 String
-    :   DoubleQuote .*? DoubleQuote // Regex : /"([^"\\]*(\\.[^"\\]*)*)"/
+    :   DoubleQuote CharOrEscape*? DoubleQuote // Regex : /"([^"\\]*(\\.[^"\\]*)*)"/
     ;
+
+CharConstant : SingleQuote CharOrEscape SingleQuote;
 
 Whitespace
     :   [ \t]+
