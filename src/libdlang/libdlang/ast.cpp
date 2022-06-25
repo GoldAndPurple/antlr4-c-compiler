@@ -110,19 +110,36 @@ std::any DlangCustomVisitor::visitPrimaryExpression(
         new ASTNodeInt(value_int, std::stoi(ctx->IntegerConstant()->getText()));
   } else if (t == DlangParser::CharConstant) {
     /* change escaped characters */
-    auto to_char = ctx->CharConstant()->getText();
-/*     size_t esc = 0;
-    while (to_char.find('\\',esc)){
-      to_char[1] = '\n';
-    } */
-    node =
-        new ASTNodeChar(value_char, to_char[1]);
+    auto str = ctx->CharConstant()->getText();
+
+    char escaped = str[1];
+    size_t start_pos = 0;
+    if ((start_pos = str.find("\\", start_pos)) != std::string::npos) {
+      if (str[start_pos + 1] == 'n') {
+        escaped = '\n';
+      } else if (str[start_pos + 1] == '0') {
+        escaped = '\0';
+      }
+    }
+
+    node = new ASTNodeChar(value_char, escaped);
   } else if (t == DlangParser::FloatConstant) {
     node = new ASTNodeFloat(
         value_float, std::stof(ctx->FloatConstant()->getText()));
   } else if (t == DlangParser::String) {
     /* change escaped characters */
     auto str = ctx->String()->getText();
+
+    size_t start_pos = 0;
+    while ((start_pos = str.find("\\", start_pos)) != std::string::npos) {
+      if (str[start_pos + 1] == 'n') {
+        str.replace(start_pos, 2, "\n");
+      } else if (str[start_pos + 1] == '0') {
+        str.replace(start_pos, 2, "\n");
+        str[start_pos] = '\0';
+      }
+    }
+
     node = new ASTNodeString(value_string, str.substr(1, str.size() - 2));
   } else if (t == DlangParser::LeftParen) {
     node = astcast(visit(ctx->expression()));
