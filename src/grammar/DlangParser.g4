@@ -35,6 +35,7 @@ blockItem
 
 declaration
 :   typeSpecifier (LeftBracket IntegerConstant RightBracket)? Identifier  (Comma Identifier)* Semi
+//|   typeSpecifier LeftBracket IntegerConstant RightBracket Identifier Assign identifierList Semi
 |   typeSpecifier assignmentExpression (Comma assignmentExpression)* Semi
 ;
 

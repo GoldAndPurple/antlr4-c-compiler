@@ -17,14 +17,12 @@ int main(int argc, char** argv) {
   options.positional_help("<file_path>");
 
   try {
-    // clang-format off
     options.add_options()
         (file_path_opt, "", cxxopts::value<std::string>())
         (dump_tokens_opt, "")
         (dump_ast_opt, "")
         (dump_asm_opt, "")
         ("h,help", "Print help");
-    // clang-format on
   } catch (const cxxopts::OptionSpecException& e) {
     std::cerr << e.what() << "\n";
     return -1;

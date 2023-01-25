@@ -23,5 +23,17 @@ int main()
     printf("You've written \n'%d'\n",result);
     printf("Also %s is a char array\n",&str[0]);
 
+    if (result > 20){
+        printf("%d is more than 20",result);
+    } else {
+        printf("%d is less than 20",result);
+    }
+
+    int i = 0;
+    while (i < 5){
+        printf("%d\n",i);
+        i = i+1;
+    }
+
     return 0;
 }
